@@ -4,7 +4,7 @@
   const scriptUrl = document.currentScript.src;
   const socketServerUrl = scriptUrl.replace("chatConsole.js", "");
   const [httpProtocol, host] = socketServerUrl.split("://");
-  console.log("socketServerUrl", socketServerUrl);
+  
   const customLog = function (message, style, logType = "log") {
     console[logType](`%c${message}`, style);
   };
