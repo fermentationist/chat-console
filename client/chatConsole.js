@@ -24,6 +24,12 @@
       message,
       "color: #32cd32; font-size: 1em; font-family: Monaco, monospace;"
     );
+
+  const logServerMessage = (message) =>
+    customLog(
+      message,
+      "color: aqua; font-size: 1em; font-family: Monaco, monospace;"
+    );
   const logError = (message) =>
     customLog(
       message,
@@ -34,7 +40,7 @@
   const logHelp = (message) => {
     customLog(
       message,
-      "color: darkgray; font-size: 1em; font-family: Courier, monospace;"
+      "color: darkgray; font-size: 1.125em; font-family: Courier, monospace;"
     );
   };
   const variableWidthDivider = (width = window.innerWidth) =>
@@ -54,7 +60,11 @@
 
     ws.onmessage = (event) => {
       const { user, message } = JSON.parse(event.data);
-      log(`${user}: ${message}`);
+      if (user === "server") {
+        logServerMessage(message);
+      } else {
+        log(`${user}: ${message}`);
+      }
     };
 
     ws.onerror = (error) => {
@@ -64,6 +74,7 @@
     ws.onclose = () => {
       tinyLog("websocket closed");
     };
+    return variableWidthDivider();
   };
 
   const say = (messageOrArrayWithMessage) => {
