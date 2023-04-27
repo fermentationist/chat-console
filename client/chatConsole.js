@@ -36,6 +36,11 @@
       "color: #ff0000; font-size: 1em; font-family: Monaco, monospace;",
       "error"
     );
+  const logWarning = (message) =>
+    customLog(
+      message,
+      "color: #ff0000; font-size: 1em; font-family: Monaco, monospace;"
+    );
 
   const logHelp = (message) => {
     customLog(
@@ -49,6 +54,9 @@
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 
   const getNewSocketConnection = () => {
+    if (protocol === "ws") {
+      logWarning("WARNING: Websocket connection is not secure.");
+    }
     ws = new WebSocket(
       `${protocol}://${window.location.host}/${
         nickname ? `?nickname=${nickname}` : ""
