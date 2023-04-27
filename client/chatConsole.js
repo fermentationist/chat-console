@@ -1,6 +1,10 @@
 (() => {
   let nickname = localStorage.getItem("nickname") || null;
   let ws = null;
+  const scriptUrl = document.currentScript.src;
+  const socketServerUrl = scriptUrl.replace("chatConsole.js", "");
+  const [httpProtocol, host] = socketServerUrl.split("://");
+  console.log("socketServerUrl", socketServerUrl);
   const customLog = function (message, style, logType = "log") {
     console[logType](`%c${message}`, style);
   };
@@ -51,14 +55,14 @@
   const variableWidthDivider = (width = window.innerWidth) =>
     ` `.repeat(width / 8);
 
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const wsProtocol = httpProtocol === "https" ? "wss" : "ws";
 
   const getNewSocketConnection = () => {
-    if (protocol === "ws") {
+    if (wsProtocol === "ws") {
       logWarning("WARNING: Websocket connection is not secure.");
     }
     ws = new WebSocket(
-      `${protocol}://${window.location.host}/${
+      `${wsProtocol}://${host}/${
         nickname ? `?nickname=${nickname}` : ""
       }`
     );
