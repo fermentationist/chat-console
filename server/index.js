@@ -2,8 +2,10 @@ import app from "./app.js";
 import http from "http";
 import webSockets from "./WebSockets.js";
 import { WebSocketServer } from "ws";
+import wakeDyno from "woke-dyno";
 
 const PORT = process.env.PORT || 8080;
+const WAKE_SERVER_INTERVAL = 1000 * 60 * 14; // 14 minutes
 const httpServer = http.createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
 
@@ -82,4 +84,14 @@ wss.on("close", () => {
 
 httpServer.listen(PORT, () => {
   console.log(`server listening on port ${PORT}`);
+  const offset = 4; // NY
+  const getOffsetHours = hours => (hours + offset) > 24 ? 24 - (hours + offset) : hours + offset;
+  const napStartHour = getOffsetHours(22);
+  const napEndHour = getOffsetHours(7)
+  wakeDyno({
+    url: `http://localhost:${PORT}`,
+    interval: WAKE_SERVER_INTERVAL, 
+    startNap: [napStartHour, 0, 0, 0],
+    endNap: [napEndHour, 0, 0, 0]
+  }).start();
 });
