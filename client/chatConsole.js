@@ -64,7 +64,7 @@
     const socketUrl = `${wsProtocol}://${host}${
       nickname ? `?nickname=${nickname}` : ""
     }`;
-    console.log("socketUrl:", socketUrl);
+    
     ws = new WebSocket(socketUrl);
     ws.onopen = () => {
       tinyLog("websocket connected");
