@@ -25,11 +25,6 @@ wss.on("connection", (ws, req) => {
         nickname ? ` with nickname ${nickname}` : ""
       }, assigned id ${userId}`
     );
-    // get log for room
-    const log = webSockets.getLog(origin);
-    // send log to new connection
-    console.log("log:", log)
-    log.forEach((data) => ws.send(JSON.stringify(data)));
 
     // send message to all connections in room to notify of new connection
     webSockets.broadcast(
