@@ -17,7 +17,7 @@ wss.on("connection", (ws, req) => {
   };
   try {
     const [_, encodedNickname] = req.url.split("?nickname=");
-    const nickname = decodeURIComponent(encodedNickname).trim();
+    const nickname = encodedNickname && decodeURIComponent(encodedNickname).trim();
     const userId = webSockets.addConnection(origin, ws, nickname);
     const name = nickname ?? userId;
     console.log(

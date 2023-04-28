@@ -61,11 +61,11 @@
     if (wsProtocol === "ws") {
       logWarning("WARNING: Websocket connection is not secure.");
     }
-    ws = new WebSocket(
-      `${wsProtocol}://${host}/${
-        nickname ? `?nickname=${nickname}` : ""
-      }`
-    );
+    const socketUrl = `${wsProtocol}://${host}${
+      nickname ? `?nickname=${nickname}` : ""
+    }`;
+    console.log("socketUrl:", socketUrl);
+    ws = new WebSocket(socketUrl);
     ws.onopen = () => {
       tinyLog("websocket connected");
     };
@@ -85,18 +85,20 @@
 
     ws.onclose = () => {
       tinyLog("websocket closed");
+      ws = null;
     };
     return variableWidthDivider();
   };
 
   const say = (messageOrArrayWithMessage) => {
     if (!ws) {
-      getNewSocketConnection();
+      logError(`Please connect to the chat room first using the "connect" or "join" commands.`);
+    } else {
+      const message = Array.isArray(messageOrArrayWithMessage)
+        ? messageOrArrayWithMessage[0]
+        : messageOrArrayWithMessage;
+      ws.send(message);
     }
-    const message = Array.isArray(messageOrArrayWithMessage)
-      ? messageOrArrayWithMessage[0]
-      : messageOrArrayWithMessage;
-    ws.send(message);
     return variableWidthDivider();
   };
 
@@ -113,8 +115,9 @@
   };
 
   const logout = () => {
-    log("disconnecting...");
+    tinyLog("disconnecting...");
     ws && ws.close();
+    ws = null;
     return variableWidthDivider();
   };
 
