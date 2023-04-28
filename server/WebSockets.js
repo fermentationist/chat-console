@@ -1,6 +1,8 @@
 class WebSockets {
+  maxLogLength = 7;
   constructor() {
     this.connections = {};
+    this.log = {};
   }
 
   getUid() {
@@ -31,10 +33,35 @@ class WebSockets {
     );
   }
 
+  saveToLog(origin, data) {
+    if (!this.log[origin]) {
+      this.log[origin] = [];
+    }
+    this.log[origin].push(data);
+    if (this.log[origin].length > this.maxLogLength) {
+      this.log[origin].shift();
+    }
+  }
+
+  getLog(origin) {
+    return this.log[origin] ?? [];
+  }
+
+  send(origin, userId, data) {
+    const connection = this.connections[origin].find(
+      (connection) => connection.id === userId
+    );
+    if (!connection) {
+      throw new Error(`connection ${userId} not found`);
+    }
+    connection.connection.send(data);
+  }
+
   broadcast(origin, data) {
     this.connections[origin].forEach((connection) =>
-      connection.connection.send(data)
+      connection.connection.send(JSON.stringify(data))
     );
+    this.saveToLog(origin, data);
   }
 
   getNicknames(origin) {

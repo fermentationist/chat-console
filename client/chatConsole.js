@@ -4,10 +4,31 @@
   const scriptUrl = document.currentScript.src;
   const socketServerUrl = scriptUrl.replace("chatConsole.js", "");
   const [httpProtocol, host] = socketServerUrl.split("://");
-  
+
   const customLog = function (message, style, logType = "log") {
     console[logType](`%c${message}`, style);
   };
+
+  const logInline = (stringSegmentArray, styleArray) => {
+    const stringSegments = stringSegmentArray
+      .map((segment) => `%c${segment}`)
+      .join("");
+    console.log(stringSegments, ...styleArray);
+  };
+
+  const logUserMessage = (userName, message, timestamp) => {
+    const date = new Date(timestamp);
+    const time = date.toLocaleTimeString();
+    logInline(
+      [`[${time}] `, `${userName}: `, message],
+      [
+        "color: darkgray; font-size: 0.85em; font-family: Monaco, monospace;",
+        "color: #32cd32; font-size: 1em; font-family: Monaco, monospace;font-style: italic;",
+        "color: #32cd32; font-size: 1em; font-family: Monaco, monospace;",
+      ]
+    );
+  };
+
   const logTitle = (message) =>
     customLog(
       message,
@@ -23,17 +44,16 @@
       message,
       "color: darkgray; font-size: 0.75em; font-family: Monaco, monospace;"
     );
-  const log = (message) =>
-    customLog(
-      message,
-      "color: #32cd32; font-size: 1em; font-family: Monaco, monospace;"
-    );
 
-  const logServerMessage = (message) =>
-    customLog(
-      message,
-      "color: aqua; font-size: 1em; font-family: Monaco, monospace;"
-    );
+  const logServerMessage = (message, timestamp) => {
+    const date = new Date(timestamp);
+    const time = date.toLocaleTimeString();
+    logInline([`[${time}] `, message], [
+      "color: darkgray; font-size: 0.85em; font-family: Monaco, monospace;",
+      "color: #1e7fff; font-size: 1em; font-family: Monaco, monospace;"
+    ]);
+  };
+
   const logError = (message) =>
     customLog(
       message,
@@ -64,18 +84,18 @@
     const socketUrl = `${wsProtocol}://${host}${
       nickname ? `?nickname=${nickname}` : ""
     }`;
-    
+
     ws = new WebSocket(socketUrl);
     ws.onopen = () => {
       tinyLog("websocket connected");
     };
 
     ws.onmessage = (event) => {
-      const { user, message } = JSON.parse(event.data);
+      const { user, message, timestamp } = JSON.parse(event.data);
       if (user === "server") {
-        logServerMessage(message);
+        logServerMessage(message, timestamp);
       } else {
-        log(`${user}: ${message}`);
+        logUserMessage(user, message, timestamp);
       }
     };
 
@@ -92,7 +112,9 @@
 
   const say = (messageOrArrayWithMessage) => {
     if (!ws) {
-      logError(`Please connect to the chat room first using the "connect" or "join" commands.`);
+      logError(
+        `Please connect to the chat room first using the "connect" or "join" commands.`
+      );
     } else {
       const message = Array.isArray(messageOrArrayWithMessage)
         ? messageOrArrayWithMessage[0]

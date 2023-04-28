@@ -21,21 +21,31 @@ wss.on("connection", (ws, req) => {
     const userId = webSockets.addConnection(origin, ws, nickname);
     const name = nickname ?? userId;
     console.log(
-      `new connection from ${origin}${
+      `[${new Date().toISOString()}] new connection from ${origin}${
         nickname ? ` with nickname ${nickname}` : ""
       }, assigned id ${userId}`
     );
+    // get log for room
+    const log = webSockets.getLog(origin);
+    // send log to new connection
+    console.log("log:", log)
+    log.forEach((data) => ws.send(JSON.stringify(data)));
+
+    // send message to all connections in room to notify of new connection
     webSockets.broadcast(
       origin,
-      JSON.stringify({ user: "server", message: `${name} joined` })
+      { user: "server", message: `${name} joined`, timestamp: Date.now() }
     );
+    // send list of users in room to new connection
     ws.send(
       JSON.stringify({
         user: "server",
         message: `Users in room: ${webSockets.getNicknames(origin).join(", ")}`,
+        timestamp: Date.now()
       })
     );
 
+    // websocket event listeners
     ws.on("error", (error) => {
       console.error("error:", error);
     });
@@ -44,24 +54,24 @@ wss.on("connection", (ws, req) => {
         null,
         new Uint16Array(arrayBufData)
       );
-      console.log(`${name} (${userId}): ${decoded}`);
+      console.log(`[${new Date().toISOString()}] ${name} (${userId}): ${decoded}`);
       webSockets.broadcast(
         origin,
-        JSON.stringify({ user: name, message: decoded })
+        { user: name, message: decoded, timestamp: Date.now() }
       );
     });
     ws.on("close", () => {
-      console.log(`connection from ${origin}, for ${name} closed`);
+      console.log(`[${new Date().toISOString()}] connection from ${origin}, for ${name} closed`);
       webSockets.removeConnection(origin, userId);
       webSockets.broadcast(
         origin,
-        JSON.stringify({ user: "server", message: `${name} left` })
+        JSON.stringify({ user: "server", message: `${name} left`, timestamp: Date.now() })
       );
     });
     ws.on("pong", heartbeat);
   } catch (error) {
     console.error(error);
-    ws.send(JSON.stringify({ user: "server", message: error.message }));
+    ws.send(JSON.stringify({ user: "server", message: error.message, timestamp: Date.now() }));
     ws.close();
   }
 });
@@ -70,11 +80,11 @@ wss.on("connection", (ws, req) => {
 const interval = setInterval(() => {
   wss.clients.forEach((ws) => {
     if (ws.isAlive === false) {
-      console.log("terminating connection");
+      console.log(`[${new Date().toISOString()}] terminating connection`);
       return ws.terminate();
     }
     ws.isAlive = false;
-    console.log("pinging client...");
+    console.log(`[${new Date().toISOString()}] pinging client...`);
     ws.ping();
   });
 }, 30000);
