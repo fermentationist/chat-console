@@ -1,15 +1,16 @@
+import "dotenv/config.js";
 import ChatBot from "./ChatBot.js";
 
 class ChatRooms {
-  BOT_NAME = "Dennis";
-  BOT_WAKEWORD = this.BOT_NAME;
+  BOT_NAME = process.env.BOT_NAME ?? "ChatBot";
+  BOT_WAKEWORD = process.env.BOT_WAKEWORD ?? this.BOT_NAME;
   maxLogLength = 7;
   RESERVED_NAMES = ["server", "bot", this.BOT_NAME, this.BOT_WAKEWORD];
 
   constructor() {
     this.connections = {};
     this.log = {};
-    this.chatbot = new ChatBot(this.BOT_NAME);
+    this.chatbot = new ChatBot(this.BOT_NAME, this.BOT_WAKEWORD);
   }
 
   getUid() {

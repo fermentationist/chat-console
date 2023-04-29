@@ -35,8 +35,8 @@ wss.on("connection", (ws, req) => {
       message: `${name} joined`,
       timestamp: Date.now(),
     });
-    const domain = origin.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split(/[\/:]/)[0];
-    const botIsActive = ACTIVATE_BOT && BOT_ENABLED_HOSTNAMES.includes(domain);
+    const hostname = origin.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split(/[\/:]/)[0];
+    const botIsActive = ACTIVATE_BOT && BOT_ENABLED_HOSTNAMES.includes(hostname);
     // send list of users in room to new connection
     ws.send(
       JSON.stringify({
