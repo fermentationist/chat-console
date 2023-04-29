@@ -7,6 +7,7 @@ import { WebSocketServer } from "ws";
 const PORT = process.env.PORT || 8080;
 const WAKE_SERVER_INTERVAL = 1000 * 60 * 14; // 14 minutes
 const ACTIVATE_BOT = process.env.ACTIVATE_BOT === "true" ? true : false;
+const BOT_ENABLED_HOSTNAMES = (process.env.BOT_ENABLED_HOSTNAMES && JSON.parse(process.env.BOT_ENABLED_HOSTNAMES)) ?? [];
 const httpServer = http.createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
 
@@ -34,19 +35,21 @@ wss.on("connection", (ws, req) => {
       message: `${name} joined`,
       timestamp: Date.now(),
     });
+    const domain = origin.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split(/[\/:]/)[0];
+    const botIsActive = ACTIVATE_BOT && BOT_ENABLED_HOSTNAMES.includes(domain);
     // send list of users in room to new connection
     ws.send(
       JSON.stringify({
         user: "server",
         message: `Users in room: ${chatRooms.getNicknames(origin).join(", ")}${
-          ACTIVATE_BOT ? `, ${chatRooms.chatbot.name} (bot)` : ""
+          botIsActive ? `, ${chatRooms.chatbot.name} (bot)` : ""
         }`,
         timestamp: Date.now(),
       })
     );
 
     // send greeting from chatbot
-    if (ACTIVATE_BOT) {
+    if (botIsActive) {
       ws.send(
         JSON.stringify({
           user: `${chatRooms.chatbot.name} (bot)`,
@@ -70,7 +73,7 @@ wss.on("connection", (ws, req) => {
         `[${new Date().toISOString()}] ${name} (${userId}): ${message}`
       );
       if (
-        ACTIVATE_BOT &&
+        botIsActive &&
         message.toLowerCase().includes(chatRooms.chatbot.wakeword.toLowerCase())
       ) {
         // get response from bot
