@@ -5,6 +5,8 @@
   const socketServerUrl = scriptUrl.replace("chatConsole.js", "");
   const [httpProtocol, host] = socketServerUrl.split("://");
 
+  const infoStyle = "color: darkgray; font-size: 0.85em; font-family: Monaco, monospace;";
+
   const customLog = function (message, style, logType = "log") {
     console[logType](`%c${message}`, style);
   };
@@ -22,7 +24,7 @@
     logInline(
       [`[${time}] `, `${userName}: `, message],
       [
-        "color: darkgray; font-size: 0.85em; font-family: Monaco, monospace;",
+        infoStyle,
         "color: #32cd32; font-size: 1em; font-family: Monaco, monospace;font-style: italic;",
         "color: #32cd32; font-size: 1em; font-family: Monaco, monospace;",
       ]
@@ -39,17 +41,17 @@
       message,
       "color: #F48224; font-size: 1.125em; font-family: Roboto, Monaco, monospace;"
     );
-  const tinyLog = (message) =>
+  const logInfo = (message) =>
     customLog(
       message,
-      "color: darkgray; font-size: 0.75em; font-family: Monaco, monospace;"
+      infoStyle
     );
 
   const logServerMessage = (message, timestamp) => {
     const date = new Date(timestamp);
     const time = date.toLocaleTimeString();
     logInline([`[${time}] `, message], [
-      "color: darkgray; font-size: 0.85em; font-family: Monaco, monospace;",
+      infoStyle,
       "color: #1e7fff; font-size: 1em; font-family: Monaco, monospace;"
     ]);
   };
@@ -87,7 +89,8 @@
 
     ws = new WebSocket(socketUrl);
     ws.onopen = () => {
-      tinyLog("websocket connected");
+      const time = new Date().toLocaleTimeString();
+      logInfo(`[${time}] websocket connected`);
     };
 
     ws.onmessage = (event) => {
@@ -104,9 +107,11 @@
     };
 
     ws.onclose = () => {
-      tinyLog("websocket closed");
+      const time = new Date().toLocaleTimeString();
+      logInfo(`[${time}] websocket closed`);
       ws = null;
     };
+
     return variableWidthDivider();
   };
 
@@ -130,14 +135,14 @@
       : messageOrArrayWithMessage;
     nickname = message ?? null;
     localStorage.setItem("nickname", nickname);
-    message && tinyLog(`connecting with nickname ${nickname}`);
+    message && logInfo(`connecting with nickname ${nickname}`);
     ws && ws.close();
     getNewSocketConnection();
     return variableWidthDivider();
   };
 
   const logout = () => {
-    tinyLog("disconnecting...");
+    logInfo("disconnecting...");
     ws && ws.close();
     ws = null;
     return variableWidthDivider();

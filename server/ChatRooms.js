@@ -1,8 +1,15 @@
-class WebSockets {
+import ChatBot from "./ChatBot.js";
+
+class ChatRooms {
+  BOT_NAME = "Dennis";
+  BOT_WAKEWORD = this.BOT_NAME;
   maxLogLength = 7;
+  RESERVED_NAMES = ["server", "bot", this.BOT_NAME, this.BOT_WAKEWORD];
+
   constructor() {
     this.connections = {};
     this.log = {};
+    this.chatbot = new ChatBot(this.BOT_NAME);
   }
 
   getUid() {
@@ -13,10 +20,17 @@ class WebSockets {
 
   addConnection(origin, connection, nickname) {
     const nicknameExists = this.connections[origin]?.some(
-      (connection) => connection.name === nickname
+      (connection) => connection.name.toLowerCase() === nickname.toLowerCase()
     );
     if (nicknameExists) {
-      throw new Error(`nickname ${nickname} already exists`);
+      throw new Error(`nickname ${nickname} already used`);
+    }
+    if (
+      this.RESERVED_NAMES.map((name) => name.toLowerCase()).includes(
+        nickname.toLowerCase()
+      )
+    ) {
+      throw new Error(`${nickname} is a reserved name`);
     }
     if (!this.connections[origin]) {
       this.connections[origin] = [];
@@ -69,4 +83,4 @@ class WebSockets {
   }
 }
 
-export default new WebSockets();
+export default new ChatRooms();
