@@ -4,12 +4,10 @@ import ChatBot from "./ChatBot.js";
 class ChatRooms {
   BOT_NAME = process.env.BOT_NAME ?? "ChatBot";
   BOT_WAKEWORD = process.env.BOT_WAKEWORD ?? this.BOT_NAME;
-  maxLogLength = 7;
   RESERVED_NAMES = ["server", "bot", this.BOT_NAME, this.BOT_WAKEWORD];
 
   constructor() {
     this.connections = {};
-    this.log = {};
     this.chatbot = new ChatBot(this.BOT_NAME, this.BOT_WAKEWORD);
   }
 
@@ -48,20 +46,6 @@ class ChatRooms {
     );
   }
 
-  saveToLog(origin, data) {
-    if (!this.log[origin]) {
-      this.log[origin] = [];
-    }
-    this.log[origin].push(data);
-    if (this.log[origin].length > this.maxLogLength) {
-      this.log[origin].shift();
-    }
-  }
-
-  getLog(origin) {
-    return this.log[origin] ?? [];
-  }
-
   send(origin, userId, data) {
     const connection = this.connections[origin].find(
       (connection) => connection.id === userId
@@ -76,7 +60,6 @@ class ChatRooms {
     this.connections[origin].forEach((connection) =>
       connection.connection.send(JSON.stringify(data))
     );
-    this.saveToLog(origin, data);
   }
 
   getNicknames(origin) {
