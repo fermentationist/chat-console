@@ -24,7 +24,7 @@ class ChatBot {
     this.openai = new OpenAIApi(this.configuration);
     this.name = name;
     this.wakeword = wakeword;
-    this.greeting = `Hello, my name is ${this.name} and I am a chatbot. To speak to me, type a message that contains my wake-word, "${this.wakeword}". I will respond to you as soon as I can. To continue our conversation, each message you send must contain the wake-word. Our conversation is private; messages containing the wake-word will not be broadcast to other users, nor will my responses to you.`;
+    this.greeting = `Hello, my name is ${this.name} and I am a chatbot. \nTo speak to me, type a message that contains my wake-word, "${this.wakeword}". I will respond to you as soon as I can. To continue our conversation, each message you send must contain the wake-word. \nOur conversation is private; messages containing the wake-word will not be broadcast to other users, nor will my responses to you. \n(WARNING: All messages that do NOT contain the wake-word WILL be broadcast to all other users. I will NOT respond to messages that do not contain the wake-word.)`;
   }
 
   getSystemPrompt(origin) {
