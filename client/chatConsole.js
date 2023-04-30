@@ -6,6 +6,7 @@
   const [httpProtocol, host] = socketServerUrl.split("://");
 
   const infoStyle = "color: darkgray; font-size: 0.85em; font-family: Monaco, monospace;";
+  const userStyle = "color: #32cd32; font-size: 1em; font-family: Monaco, monospace; line-height: 1.75;"
 
   const customLog = function (message, style, logType = "log") {
     console[logType](`%c${message}`, style);
@@ -25,8 +26,8 @@
       [`[${time}] `, `${userName}: `, message],
       [
         infoStyle,
-        "color: #32cd32; font-size: 1em; font-family: Monaco, monospace;font-style: italic;",
-        "color: #32cd32; font-size: 1em; font-family: Monaco, monospace;",
+        userStyle + "font-style: italic;",
+        userStyle,
       ]
     );
   };
@@ -52,7 +53,7 @@
     const time = date.toLocaleTimeString();
     logInline([`[${time}] `, message], [
       infoStyle,
-      "color: #1e7fff; font-size: 1em; font-family: Monaco, monospace;"
+      "color: #1e7fff; font-size: 1em; font-family: Monaco, monospace; line-height: 1.75;"
     ]);
   };
 
