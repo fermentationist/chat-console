@@ -5,6 +5,7 @@ import chatRooms from "./ChatRooms.js";
 import { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT || 8080;
+const WAKE_SERVER_URL = process.env.WAKE_SERVER_URL ?? `http://localhost:${PORT}`;
 const WAKE_SERVER_INTERVAL =
   (process.env.WAKE_SERVER_INTERVAL &&
     parseInt(process.env.WAKE_SERVER_INTERVAL)) ??
@@ -226,7 +227,7 @@ wss.on("close", () => {
 httpServer.listen(PORT, () => {
   cLog(`server listening on port ${PORT}`);
   wakeDyno({
-    url: `http://localhost:${PORT}`,
+    url: WAKE_SERVER_URL,
     interval: WAKE_SERVER_INTERVAL,
   }).start();
 });
