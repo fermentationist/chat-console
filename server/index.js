@@ -5,7 +5,7 @@ import chatRooms from "./ChatRooms.js";
 import { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT || 8080;
-const WAKE_SERVER_INTERVAL = 1000 * 60 * 14; // 14 minutes
+const WAKE_SERVER_INTERVAL = process.env.WAKE_SERVER_INTERVAL ?? 1000 * 60 * 14; // 14 minutes
 const SOCKET_PING_INTERVAL = 1000 * 60; // 1 minute
 const ACTIVATE_BOT = process.env.ACTIVATE_BOT === "true" ? true : false;
 const BOT_ENABLED_HOSTNAMES =
@@ -196,6 +196,6 @@ httpServer.listen(PORT, () => {
   cLog(`server listening on port ${PORT}`);
   wakeDyno({
     url: `http://localhost:${PORT}`,
-    interval: 60000,
+    interval: WAKE_SERVER_INTERVAL,
   }).start();
 });
