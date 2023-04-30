@@ -156,7 +156,11 @@ wss.on("connection", (ws, req) => {
       );
     });
 
-    ws.on("pong", heartbeat);
+    ws.on("pong", () => {
+      heartbeat();
+      cLog(`[${new Date().toISOString()}] pong received from ${name} (${userId})`);
+    });
+
   } catch (error) {
     console.error("Websocket connection error:", error);
     ws.send(
@@ -181,7 +185,7 @@ const interval = setInterval(() => {
     cLog(`[${new Date().toISOString()}] pinging client...`);
     ws.ping();
   });
-},  SOCKET_PING_INTERVAL + wss.clients.length * 500);
+},  SOCKET_PING_INTERVAL + wss.clients.size * 500);
 
 wss.on("close", () => {
   cLog(`[${new Date().toISOString()}] closing websocket server`);
