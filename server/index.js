@@ -6,20 +6,30 @@ import { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT || 8080;
 const WAKE_SERVER_INTERVAL = 1000 * 60 * 14; // 14 minutes
+const SOCKET_PING_INTERVAL = 1000 * 60; // 1 minute
 const ACTIVATE_BOT = process.env.ACTIVATE_BOT === "true" ? true : false;
 const BOT_ENABLED_HOSTNAMES =
   (process.env.BOT_ENABLED_HOSTNAMES &&
     JSON.parse(process.env.BOT_ENABLED_HOSTNAMES)) ??
   [];
+const VERBOSE_LOGS = process.env.VERBOSE_LOGS === "true" ? true : false;
 const httpServer = http.createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
+
+const cLog = (message, logLevel) => {
+  if (logLevel === "verbose") {
+    if (VERBOSE_LOGS) {
+      console.log(message);
+    }
+  } else {
+    console.log(message);
+  }
+};
 
 wss.on("connection", (ws, req) => {
   ws.isAlive = true;
   const { origin } = req.headers;
-  const heartbeat = () => {
-    ws.isAlive = true;
-  };
+  const heartbeat = () => (ws.isAlive = true);
 
   try {
     const [_, encodedNickname] = req.url.split("?nickname=");
@@ -27,7 +37,7 @@ wss.on("connection", (ws, req) => {
       encodedNickname && decodeURIComponent(encodedNickname).trim();
     const userId = chatRooms.addConnection(origin, ws, nickname);
     const name = nickname ?? userId;
-    console.log(
+    cLog(
       `[${new Date().toISOString()}] new connection from ${origin}${
         nickname ? ` with nickname ${nickname}` : ""
       }, assigned id ${userId}`
@@ -38,7 +48,10 @@ wss.on("connection", (ws, req) => {
       message: `${name} joined`,
       timestamp: Date.now(),
     };
-    console.log(`[${new Date().toISOString()}] sending join message about ${name} (${userId}): ${JSON.stringify(joinMessageObj)}`);
+    cLog(
+      `[${new Date().toISOString()}] sending join message about ${name} (${userId})`
+    );
+    cLog(joinMessageObj.message, "verbose");
     chatRooms.broadcast(origin, joinMessageObj);
 
     const hostname = origin
@@ -55,25 +68,27 @@ wss.on("connection", (ws, req) => {
       }`,
       timestamp: Date.now(),
     };
-    console.log(`[${new Date().toISOString()}] sending userlist message to ${name} (${userId}): ${JSON.stringify(userListMessageObj)}`);
-    ws.send(
-      JSON.stringify(userListMessageObj)
+    cLog(
+      `[${new Date().toISOString()}] sending userlist message to ${name} (${userId})`
     );
+    cLog(userListMessageObj.message, "verbose");
+    ws.send(JSON.stringify(userListMessageObj));
 
-    // send greeting from chatbot
     if (botIsActive) {
+      // send greeting from chatbot
       const botGreetingMessageObj = {
         user: `${chatRooms.chatbot.name} (bot)`,
         message: chatRooms.chatbot.greeting,
         timestamp: Date.now(),
       };
-      console.log(`[${new Date().toISOString()}] sending bot greeting message to ${name} (${userId}): ${JSON.stringify(botGreetingMessageObj)}`);
-      ws.send(
-        JSON.stringify(botGreetingMessageObj)
+      cLog(
+        `[${new Date().toISOString()}] sending bot greeting message to ${name} (${userId})`
       );
+      cLog(botGreetingMessageObj.message, "verbose");
+      ws.send(JSON.stringify(botGreetingMessageObj));
     }
 
-    // websocket event listeners
+    // add websocket event listeners
     ws.on("error", (error) => {
       console.error("error:", error);
     });
@@ -83,9 +98,10 @@ wss.on("connection", (ws, req) => {
         null,
         new Uint16Array(arrayBufData)
       );
-      console.log(
-        `[${new Date().toISOString()}] incoming message from ${name} (${userId}): ${message}`
+      cLog(
+        `[${new Date().toISOString()}] incoming message from ${name} (${userId})`
       );
+      cLog(message, "verbose");
       if (
         botIsActive &&
         message.toLowerCase().includes(chatRooms.chatbot.wakeword.toLowerCase())
@@ -102,11 +118,10 @@ wss.on("connection", (ws, req) => {
           message: botResponse,
           timestamp: Date.now(),
         };
-        console.log(
-          `[${new Date().toISOString()}] sending bot response to ${name} (${userId}): ${JSON.stringify(
-            botResponseObj
-          )}`
+        cLog(
+          `[${new Date().toISOString()}] sending bot response to ${name} (${userId})`
         );
+        cLog(botResponseObj.message, "verbose");
         ws.send(JSON.stringify(botResponseObj));
       } else {
         // send message to all connections in room
@@ -115,20 +130,22 @@ wss.on("connection", (ws, req) => {
           message,
           timestamp: Date.now(),
         };
-        console.log(
-          `[${new Date().toISOString()}] sending message to room from ${name} (${userId}): ${JSON.stringify(
-            userMessageObj
-          )}`
+        cLog(
+          `[${new Date().toISOString()}] sending message to room from ${name} (${userId})`
         );
+        cLog(userMessageObj.message, "verbose");
         chatRooms.broadcast(origin, userMessageObj);
       }
     });
 
     ws.on("close", () => {
-      console.log(
-        `[${new Date().toISOString()}] connection from ${origin}, for ${name} closed`
+      cLog(
+        `[${new Date().toISOString()}] connection to ${name}, from ${origin} closed, removing from room`
       );
       chatRooms.removeConnection(origin, userId);
+      cLog(
+        `[${new Date().toISOString()}] sending leave message to room for ${name} (${userId})`
+      );
       chatRooms.broadcast(
         origin,
         JSON.stringify({
@@ -141,11 +158,11 @@ wss.on("connection", (ws, req) => {
 
     ws.on("pong", heartbeat);
   } catch (error) {
-    console.error(error);
+    console.error("Websocket connection error:", error);
     ws.send(
       JSON.stringify({
         user: "server",
-        message: error.message,
+        message: "A server error occurred",
         timestamp: Date.now(),
       })
     );
@@ -153,25 +170,26 @@ wss.on("connection", (ws, req) => {
   }
 });
 
-// ping clients every 30 seconds to check if they are still alive
+// ping clients to check if they are still alive
 const interval = setInterval(() => {
   wss.clients.forEach((ws) => {
     if (ws.isAlive === false) {
-      console.log(`[${new Date().toISOString()}] terminating connection`);
+      cLog(`[${new Date().toISOString()}] terminating connection`);
       return ws.terminate();
     }
     ws.isAlive = false;
-    console.log(`[${new Date().toISOString()}] pinging client...`);
+    cLog(`[${new Date().toISOString()}] pinging client...`);
     ws.ping();
   });
-}, 30000);
+},  SOCKET_PING_INTERVAL + wss.clients.length * 500);
 
 wss.on("close", () => {
+  cLog(`[${new Date().toISOString()}] closing websocket server`);
   clearInterval(interval);
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`server listening on port ${PORT}`);
+  cLog(`server listening on port ${PORT}`);
   const offset = 4; // NY
   const getOffsetHours = (hours) =>
     hours + offset > 24 ? 24 - (hours + offset) : hours + offset;
