@@ -86,7 +86,7 @@
     const socketUrl = `${wsProtocol}://${host}${
       nickname ? `?nickname=${nickname}` : ""
     }`;
-
+    ws && ws.close();
     ws = new WebSocket(socketUrl);
     ws.onopen = () => {
       const time = new Date().toLocaleTimeString();
@@ -109,7 +109,6 @@
     ws.onclose = () => {
       const time = new Date().toLocaleTimeString();
       logInfo(`[${time}] websocket closed`);
-      ws = null;
     };
 
     return variableWidthDivider();
@@ -129,13 +128,13 @@
     return variableWidthDivider();
   };
 
-  const join = (messageOrArrayWithMessage) => {
-    const message = Array.isArray(messageOrArrayWithMessage)
-      ? messageOrArrayWithMessage[0]
-      : messageOrArrayWithMessage;
-    nickname = message ?? null;
+  const join = (nicknameOrArrayWithNickname) => {
+    const name = Array.isArray(nicknameOrArrayWithNickname)
+      ? nicknameOrArrayWithNickname[0]
+      : nicknameOrArrayWithNickname;
+    nickname = name ?? null;
     localStorage.setItem("nickname", nickname);
-    message && logInfo(`connecting with nickname ${nickname}`);
+    nickname && logInfo(`connecting with nickname ${nickname}`);
     ws && ws.close();
     getNewSocketConnection();
     return variableWidthDivider();
