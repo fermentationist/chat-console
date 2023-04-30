@@ -91,6 +91,7 @@ const showHelp = () => {
   logHelp(
     "  say `<message>` - send a message to the chat room (use backticks)"
   );
+  logHelp("  users - list users in the chat room");
   logHelp("  logout - disconnect from the chat room");
   logHelp("  help - show this help message");
   return variableWidthDivider();
