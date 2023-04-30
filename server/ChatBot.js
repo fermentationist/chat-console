@@ -137,7 +137,6 @@ class ChatBot {
   }
 
   async converse(userInput, origin, userId) {
-    console.log("this.isPending(origin, userId):", this.isPending(origin, userId));
     if (this.isPending(origin, userId)) {
       return `Please wait while I finish responding to your previous message.`;
     }

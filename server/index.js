@@ -116,7 +116,7 @@ wss.on("connection", (ws, req) => {
           timestamp: Date.now(),
         };
         console.log(
-          `[${new Date().toISOString()}] sending message to room from ${name} (${userId}) to chatroom: ${JSON.stringify(
+          `[${new Date().toISOString()}] sending message to room from ${name} (${userId}): ${JSON.stringify(
             userMessageObj
           )}`
         );
