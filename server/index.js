@@ -7,7 +7,10 @@ import { WebSocketServer } from "ws";
 const PORT = process.env.PORT || 8080;
 const WAKE_SERVER_INTERVAL = 1000 * 60 * 14; // 14 minutes
 const ACTIVATE_BOT = process.env.ACTIVATE_BOT === "true" ? true : false;
-const BOT_ENABLED_HOSTNAMES = (process.env.BOT_ENABLED_HOSTNAMES && JSON.parse(process.env.BOT_ENABLED_HOSTNAMES)) ?? [];
+const BOT_ENABLED_HOSTNAMES =
+  (process.env.BOT_ENABLED_HOSTNAMES &&
+    JSON.parse(process.env.BOT_ENABLED_HOSTNAMES)) ??
+  [];
 const httpServer = http.createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
 
@@ -30,32 +33,43 @@ wss.on("connection", (ws, req) => {
       }, assigned id ${userId}`
     );
     // send message to all connections in room to notify of new connection
-    chatRooms.broadcast(origin, {
+    const joinMessageObj = {
       user: "server",
       message: `${name} joined`,
       timestamp: Date.now(),
-    });
-    const hostname = origin.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split(/[\/:]/)[0];
-    const botIsActive = ACTIVATE_BOT && BOT_ENABLED_HOSTNAMES.includes(hostname);
+    };
+    console.log(`[${new Date().toISOString()}] sending join message about ${name} (${userId}): ${JSON.stringify(joinMessageObj)}`);
+    chatRooms.broadcast(origin, joinMessageObj);
+
+    const hostname = origin
+      .replace(/^(?:https?:\/\/)?(?:www\.)?/i, "")
+      .split(/[\/:]/)[0];
+    const botIsActive =
+      ACTIVATE_BOT && BOT_ENABLED_HOSTNAMES.includes(hostname);
+
     // send list of users in room to new connection
+    const userListMessageObj = {
+      user: "server",
+      message: `Users in room: ${chatRooms.getNicknames(origin).join(", ")}${
+        botIsActive ? `, ${chatRooms.chatbot.name} (bot)` : ""
+      }`,
+      timestamp: Date.now(),
+    };
+    console.log(`[${new Date().toISOString()}] sending userlist message to ${name} (${userId}): ${JSON.stringify(userListMessageObj)}`);
     ws.send(
-      JSON.stringify({
-        user: "server",
-        message: `Users in room: ${chatRooms.getNicknames(origin).join(", ")}${
-          botIsActive ? `, ${chatRooms.chatbot.name} (bot)` : ""
-        }`,
-        timestamp: Date.now(),
-      })
+      JSON.stringify(userListMessageObj)
     );
 
     // send greeting from chatbot
     if (botIsActive) {
+      const botGreetingMessageObj = {
+        user: `${chatRooms.chatbot.name} (bot)`,
+        message: chatRooms.chatbot.greeting,
+        timestamp: Date.now(),
+      };
+      console.log(`[${new Date().toISOString()}] sending bot greeting message to ${name} (${userId}): ${JSON.stringify(botGreetingMessageObj)}`);
       ws.send(
-        JSON.stringify({
-          user: `${chatRooms.chatbot.name} (bot)`,
-          message: chatRooms.chatbot.greeting,
-          timestamp: Date.now(),
-        })
+        JSON.stringify(botGreetingMessageObj)
       );
     }
 
@@ -70,29 +84,43 @@ wss.on("connection", (ws, req) => {
         new Uint16Array(arrayBufData)
       );
       console.log(
-        `[${new Date().toISOString()}] ${name} (${userId}): ${message}`
+        `[${new Date().toISOString()}] incoming message from ${name} (${userId}): ${message}`
       );
       if (
         botIsActive &&
         message.toLowerCase().includes(chatRooms.chatbot.wakeword.toLowerCase())
       ) {
         // get response from bot
-        const botResponse = await chatRooms.chatbot.converse(message, origin, userId);
-        // send response from bot
-        ws.send(
-          JSON.stringify({
-            user: `${chatRooms.chatbot.name} (bot)`,
-            message: botResponse,
-            timestamp: Date.now(),
-          })
+        const botResponse = await chatRooms.chatbot.converse(
+          message,
+          origin,
+          userId
         );
+        // send response from bot
+        const botResponseObj = {
+          user: `${chatRooms.chatbot.name} (bot)`,
+          message: botResponse,
+          timestamp: Date.now(),
+        };
+        console.log(
+          `[${new Date().toISOString()}] sending bot response to ${name} (${userId}): ${JSON.stringify(
+            botResponseObj
+          )}`
+        );
+        ws.send(JSON.stringify(botResponseObj));
       } else {
         // send message to all connections in room
-        chatRooms.broadcast(origin, {
+        const userMessageObj = {
           user: name,
           message,
           timestamp: Date.now(),
-        });
+        };
+        console.log(
+          `[${new Date().toISOString()}] sending message to room from ${name} (${userId}) to chatroom: ${JSON.stringify(
+            userMessageObj
+          )}`
+        );
+        chatRooms.broadcast(origin, userMessageObj);
       }
     });
 

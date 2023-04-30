@@ -118,7 +118,7 @@
   const say = (messageOrArrayWithMessage) => {
     if (!ws || ws.readyState !== 1) {
       logError(
-        `Please connect to the chat room first using the "connect" or "join" commands.`
+        `Not connected. Please connect to the chat room first using the "connect" or "join" commands.`
       );
     } else {
       const message = Array.isArray(messageOrArrayWithMessage)
