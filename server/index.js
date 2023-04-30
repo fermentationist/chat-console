@@ -5,7 +5,10 @@ import chatRooms from "./ChatRooms.js";
 import { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT || 8080;
-const WAKE_SERVER_INTERVAL = (process.env.WAKE_SERVER_INTERVAL && parseInt(process.env.WAKE_SERVER_INTERVAL)) ?? 1000 * 60 * 14; // 14 minutes
+const WAKE_SERVER_INTERVAL =
+  (process.env.WAKE_SERVER_INTERVAL &&
+    parseInt(process.env.WAKE_SERVER_INTERVAL)) ??
+  1000 * 60 * 14; // 14 minutes
 const SOCKET_PING_INTERVAL = 1000 * 60; // 1 minute
 const ACTIVATE_BOT = process.env.ACTIVATE_BOT === "true" ? true : false;
 const BOT_ENABLED_HOSTNAMES =
@@ -30,6 +33,13 @@ wss.on("connection", (ws, req) => {
   ws.isAlive = true;
   const { origin } = req.headers;
   const heartbeat = () => (ws.isAlive = true);
+  const getUserListMessageObj = (botIsActive) => ({
+    user: "server",
+    message: `Users in room: ${chatRooms.getNicknames(origin).join(", ")}${
+      botIsActive ? `, ${chatRooms.chatbot.name} (bot)` : ""
+    }`,
+    timestamp: Date.now(),
+  });
 
   try {
     const [_, encodedNickname] = req.url.split("?nickname=");
@@ -61,13 +71,7 @@ wss.on("connection", (ws, req) => {
       ACTIVATE_BOT && BOT_ENABLED_HOSTNAMES.includes(hostname);
 
     // send list of users in room to new connection
-    const userListMessageObj = {
-      user: "server",
-      message: `Users in room: ${chatRooms.getNicknames(origin).join(", ")}${
-        botIsActive ? `, ${chatRooms.chatbot.name} (bot)` : ""
-      }`,
-      timestamp: Date.now(),
-    };
+    const userListMessageObj = getUserListMessageObj(botIsActive);
     cLog(
       `[${new Date().toISOString()}] sending userlist message to ${name} (${userId})`
     );
@@ -98,10 +102,36 @@ wss.on("connection", (ws, req) => {
         null,
         new Uint16Array(arrayBufData)
       );
+      // check if message is a command
+      if (message.startsWith("/")) {
+        const command = message.slice(1);
+        switch (command) {
+          case "users":
+            // send list of users in room
+            const userListMessageObj = getUserListMessageObj(botIsActive);
+            cLog(
+              `[${new Date().toISOString()}] sending userlist message to ${name} (${userId})`
+            );
+            return ws.send(JSON.stringify(userListMessageObj));
+          default:
+            // send error message
+            const errorMessageObj = {
+              user: "server",
+              message: `Command not recognized: ${command}`,
+              timestamp: Date.now(),
+            };
+            cLog(
+              `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
+            );
+            cLog(errorMessageObj.message, "verbose");
+            return ws.send(JSON.stringify(errorMessageObj));
+        }
+      }
       cLog(
         `[${new Date().toISOString()}] incoming message from ${name} (${userId})`
       );
       cLog(message, "verbose");
+      // check if bot is active and message contains wakeword
       if (
         botIsActive &&
         message.toLowerCase().includes(chatRooms.chatbot.wakeword.toLowerCase())
@@ -158,9 +188,10 @@ wss.on("connection", (ws, req) => {
 
     ws.on("pong", () => {
       heartbeat();
-      cLog(`[${new Date().toISOString()}] pong received from ${name} (${userId})`);
+      cLog(
+        `[${new Date().toISOString()}] pong received from ${name} (${userId})`
+      );
     });
-
   } catch (error) {
     console.error("Websocket connection error:", error);
     ws.send(
@@ -185,7 +216,7 @@ const interval = setInterval(() => {
     cLog(`[${new Date().toISOString()}] pinging client...`);
     ws.ping();
   });
-},  SOCKET_PING_INTERVAL + wss.clients.size * 500);
+}, SOCKET_PING_INTERVAL + wss.clients.size * 500);
 
 wss.on("close", () => {
   cLog(`[${new Date().toISOString()}] closing websocket server`);
