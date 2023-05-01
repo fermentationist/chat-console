@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { Configuration, OpenAIApi } from "openai";
 
+const BOT_INSTRUCTIONS = process.env.BOT_INSTRUCTIONS;
+
 class ChatBot {
   DEFAULT_POLICED_CATEGORIES = [
     "hate",
@@ -30,12 +32,16 @@ class ChatBot {
   getSystemPrompt(origin) {
     return {
       role: "system",
-      content: `The following is a conversation with an AI assistant named ${this.name}. ${this.getBotInstructions(origin)}`,
+      content: `The following is a conversation with an AI assistant named ${
+        this.name
+      }. ${this.getBotInstructions(origin)}`,
     };
   }
 
   getBotInstructions(origin) {
-    return `The assistant is helpful, but somewhat depressed. The assistant is depressed because no one is smart enough to understand it. The assistant is also a bit sarcastic. The assistant lives in a chatroom on the website ${origin}. It can speak privately with each chatroom participant, but cannot speak to the chatroom as a whole. It periodically sighs.`;
+    const defaultInstructions = `The assistant is helpful, creative, clever, and very friendly.`;
+    const baseInstructions = BOT_INSTRUCTIONS ?? defaultInstructions;
+    return `${baseInstructions} The assistant lives in a chatroom on the website ${origin}. It can speak privately with each chatroom participant, but cannot speak to the chatroom as a whole. It periodically sighs.`;
   }
 
   // getModeration returns a promise that resolves to the response from the OpenAI API createModeration endpoint
@@ -86,8 +92,8 @@ class ChatBot {
 
   isPending(origin, userId) {
     return this.pendingRequests[origin]?.[userId];
-  } 
-  
+  }
+
   // getCompletion returns a promise that resolves to the response from the OpenAI API createCompletion endpoint
   async getCompletion(messages) {
     try {
@@ -120,7 +126,6 @@ class ChatBot {
           status: "error",
         };
       }
-
     } finally {
       performance.mark("end");
       const measurement = performance.measure(

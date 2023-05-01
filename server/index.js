@@ -5,11 +5,14 @@ import chatRooms from "./ChatRooms.js";
 import { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT || 8080;
-const WAKE_SERVER_URL = process.env.WAKE_SERVER_URL ?? `http://localhost:${PORT}`;
+const WAKE_SERVER_URL = process.env.WAKE_SERVER_URL;
 const WAKE_SERVER_INTERVAL =
   (process.env.WAKE_SERVER_INTERVAL &&
     parseInt(process.env.WAKE_SERVER_INTERVAL)) ??
   1000 * 60 * 14; // 14 minutes
+
+const WAKE_SERVER_NAP_START = process.env.WAKE_SERVER_NAP_START;
+const WAKE_SERVER_NAP_END = process.env.WAKE_SERVER_NAP_END;
 const SOCKET_PING_INTERVAL = 1000 * 60; // 1 minute
 const ACTIVATE_BOT = process.env.ACTIVATE_BOT === "true" ? true : false;
 const BOT_ENABLED_HOSTNAMES =
@@ -232,14 +235,35 @@ wss.on("close", () => {
 
 httpServer.listen(PORT, () => {
   cLog(`server listening on port ${PORT}`);
-  const offset = 4; // NY
-  const getOffsetHours = (hours) => (hours + offset) > 24 ? Math.abs(24 - (hours + offset)) : hours + offset;
-  const napStartHour = getOffsetHours(22);
-  const napEndHour = getOffsetHours(7);
-  wakeDyno({
-    url: WAKE_SERVER_URL,
-    interval: WAKE_SERVER_INTERVAL, 
-    startNap: [napStartHour, 0, 0, 0],
-    endNap: [napEndHour, 0, 0, 0]
-  }).start();
+  if (WAKE_SERVER_URL) {
+    const parseTimeString = (time) => {
+      if (!time) {
+        return false;
+      }
+      let [hh, mm] = time.split(":");
+      hh = parseInt(hh);
+      mm = parseInt(mm);
+      if ((hh >= 0 && hh <= 23) && (mm >= 0 && mm <= 59)) {
+        return [hh, mm];
+      } 
+      return false;
+    }
+    const wokeDynoConfig = {
+      url: WAKE_SERVER_URL,
+      interval: WAKE_SERVER_INTERVAL, 
+    }
+    const startNap = parseTimeString(WAKE_SERVER_NAP_START);
+    const endNap = parseTimeString(WAKE_SERVER_NAP_END);
+    if (startNap && endNap) { // if nap times are set
+      const offset = 4; // NY
+      const getOffsetHours = (hours) => (hours + offset) > 24 ? Math.abs(24 - (hours + offset)) : hours + offset;
+      const [hhStart, mmStart] = startNap;
+      const [hhEnd, mmEnd] = endNap;
+      const napStartHour = getOffsetHours(hhStart);
+      const napEndHour = getOffsetHours(hhEnd);
+      wokeDynoConfig.startNap = [napStartHour, parseInt(mmStart), 0, 0];
+      wokeDynoConfig.endNap = [napEndHour, parseInt(mmEnd), 0, 0];
+    }
+    wakeDyno(wokeDynoConfig).start();
+  }
 });
