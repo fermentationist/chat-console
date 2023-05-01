@@ -22,6 +22,7 @@ To use the chat client, you must first open the browser's JavaScript console. Th
 - **save** - Save the current chat log to text file. You will be prompted for a filename and location.
 - **load** - Load chat log from file and display it in the console. You will be prompted for a filename and location.
 - **clear** - Clear the console.
+- **unsay** - Remove the last user message and chatbot response from the chatbot conversation. Each time you interact with the chatbot, all of your previous interactions for that session are sent along with the current message. The chatbot has no memory of the conversation otherwise, and it uses this message log for context. If you use `unsay` to undo one or more messages/responses, the chatbot will no longer have any "memory" of the "unsaid" correspondence. (Note that this command does not remove the message from the user's local chat log.)
 - **help** - Display the help message.
 
 ---
@@ -42,7 +43,7 @@ The chat server is configured to create a separate chat room for each hostname t
 
 If you want to use the chatbot, you must first create an account with [OpenAI](https://beta.openai.com/). Once you have an account, you can get an API key from the [API settings page](https://beta.openai.com/account/api-keys). Once you have an API key, you can add it to the server's environment variables as `OPENAI_API_KEY`.
 
-If you are using a free service to host your server, like render.com, that spins down and sleeps when not used for a while, you can use the `WAKE_SERVER_URL` and `WAKE_SERVER_INTERVAL` environment variables to keep the server awake. The server will make a fetch call to the URL every `WAKE_SERVER_INTERVAL` milliseconds.
+If you are using a free service to host your server that spins down and sleeps when not used for a while (like render.com), you can use the `WAKE_SERVER_URL` and `WAKE_SERVER_INTERVAL` environment variables to keep the server awake. The server will make a fetch call to the URL every `WAKE_SERVER_INTERVAL` milliseconds.
 
 ### Environment Variables
 
@@ -52,6 +53,7 @@ If you are using a free service to host your server, like render.com, that spins
 - **`ACTIVATE_BOT`** - if "true", chatbot will be activated for all hosts listed in BOT_ENABLED_HOSTNAMES
 - **`BOT_ENABLED_HOSTNAMES`** - An array of strings - a list of hostnames whose chat rooms should have the chatbot present. If a hostname is not listed, that host's chat room will have no chatbot.
 - **`BOT_NAME`** - The name to give the AI chatbot, if not included, default value will be used
+- **`BOT_INSTRUCTIONS`** - If provided, will be used as the chatbot's system prompt to define its behavior. Refer to the AI as "the assistant" when formulating instructions. (e.g. "The assistant is a chatbot that answers questions about the weather.")
 - **`VERBOSE_LOGS`** - if "true", server will log the content of all user chat messages
 - **`WAKE_SERVER_URL`** - URL of the chat server, if present, server will make a fetch call to this URL every WAKE_SERVER_INTERVAL milliseconds
 - **`WAKE_SERVER_INTERVAL`** - milliseconds to wait between calls to WAKE_SERVER_URL
