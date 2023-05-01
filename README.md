@@ -3,7 +3,7 @@
 
 ## About
 
-**chat-console** is a websockets-based chat server with a browser console-based client. The server is written in Node.js, and uses the [ws](https://www.npmjs.com/package/ws) package for websockets. The client is written in vanilla JavaScript.
+**chat-console** is a websockets-based chat server with a browser console-based client. The server is written in Node.js, and uses the [ws](https://www.npmjs.com/package/ws) package for websockets. The client is written in vanilla JavaScript, and has a command-line interface. It can be added to any web page with a single script tag.
 
 The app also uses the [OpenAI GPT-3.5 API](https://platform.openai.com/docs/api-reference/) to power a chatbot which can be interacted with in the chatroom.
 
