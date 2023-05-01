@@ -108,6 +108,7 @@ const showHelp = () => {
   logHelp("  log - show chat log");
   logHelp("  save - save chat log to file");
   logHelp("  load - load chat log from file");
+  logHelp("  clear - clear console");
   logHelp("  help - show this help message");
   return variableWidthDivider();
 };
@@ -154,6 +155,11 @@ const load = () => {
   return variableWidthDivider();
 };
 
+const clear = () => {
+  console.clear();
+  return variableWidthDivider();
+};
+
 // bind commands to window
 bindFunctionToWindow(say, [
   ...getCases("say"),
@@ -182,6 +188,7 @@ bindCommandToGetter(showHelp, [...getCases("help"), ...getCases("h")]);
 bindCommandToGetter(showChatLog, [...getCases("log"), ...getCases("history")]);
 bindCommandToGetter(save, [...getCases("save"), ...getCases("export")]);
 bindCommandToGetter(load, [...getCases("load"), ...getCases("import"), ...getCases("replay")]);
+bindCommandToGetter(clear, getCases("clear"));
 
 // log title and help message
 logTitle("chat-console");
