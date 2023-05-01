@@ -5,7 +5,6 @@ import {
   logError,
   logWarning,
   logHelp,
-  variableWidthDivider,
   logMessage,
 } from "./customConsoleLog.js";
 
@@ -13,6 +12,7 @@ import {
   bindCommandToGetter,
   bindFunctionToWindow,
   getCases,
+  variableWidthDivider,
 } from "./utils.js";
 
 let chatLog = [];
@@ -66,7 +66,7 @@ const say = (messageOrArrayWithMessage) => {
     const message = Array.isArray(messageOrArrayWithMessage)
       ? messageOrArrayWithMessage[0]
       : messageOrArrayWithMessage;
-    ws.send(message);
+    ws.send(encodeURIComponent(message));
   }
   return variableWidthDivider();
 };

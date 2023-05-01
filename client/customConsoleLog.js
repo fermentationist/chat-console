@@ -14,9 +14,9 @@ export const logInline = (stringSegmentArray, styleArray) => {
 
 export const logMessage = (username, message, timestamp) => {
   if (username === "server") {
-    logServerMessage(message, timestamp);
+    logServerMessage(decodeURIComponent(message), timestamp);
   } else {
-    logUserMessage(username, message, timestamp);
+    logUserMessage(username, decodeURIComponent(message), timestamp);
   }
 }
 
@@ -76,5 +76,4 @@ export const logHelp = (message) => {
     "color: darkgray; font-size: 1.125em; font-family: Courier, monospace;"
   );
 };
-export const variableWidthDivider = (width = window.innerWidth) =>
-  ` `.repeat(width / 8);
+

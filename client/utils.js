@@ -13,3 +13,6 @@ export const bindFunctionToWindow = (func, aliasArray) => {
     window[alias] = func;
   });
 }
+
+export const variableWidthDivider = (width = window.innerWidth) =>
+  ` `.repeat(Math.floor(width / 9));

@@ -26,10 +26,10 @@ const wss = new WebSocketServer({ server: httpServer });
 const cLog = (message, logLevel) => {
   if (logLevel === "verbose") {
     if (VERBOSE_LOGS) {
-      console.log(message);
+      console.log(decodeURIComponent(message));
     }
   } else {
-    console.log(message);
+    console.log(decodeURIComponent(message));
   }
 };
 
