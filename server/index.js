@@ -227,9 +227,9 @@ wss.on("close", () => {
 httpServer.listen(PORT, () => {
   cLog(`server listening on port ${PORT}`);
   const offset = 4; // NY
-  const getOffsetHours = (hours) => (hours + offset) > 24 ? 24 - (hours + offset) : hours + offset;
+  const getOffsetHours = (hours) => (hours + offset) > 24 ? Math.abs(24 - (hours + offset)) : hours + offset;
   const napStartHour = getOffsetHours(22);
-  const napEndHour = getOffsetHours(7)
+  const napEndHour = getOffsetHours(7);
   wakeDyno({
     url: WAKE_SERVER_URL,
     interval: WAKE_SERVER_INTERVAL, 
