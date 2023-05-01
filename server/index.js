@@ -26,10 +26,10 @@ const wss = new WebSocketServer({ server: httpServer });
 const cLog = (message, logLevel) => {
   if (logLevel === "verbose") {
     if (VERBOSE_LOGS) {
-      console.log(decodeURIComponent(message));
+      console.log(message);
     }
   } else {
-    console.log(decodeURIComponent(message));
+    console.log(message);
   }
 };
 
@@ -107,8 +107,9 @@ wss.on("connection", (ws, req) => {
         new Uint16Array(arrayBufData)
       );
       // check if message is a command
-      if (message.startsWith("/")) {
-        const command = message.slice(1);
+      const decodedMessage = decodeURIComponent(message);
+      if ((decodedMessage).startsWith("/")) {
+        const command = decodedMessage.slice(1);
         switch (command) {
           case "users":
             // send list of users in room
@@ -117,6 +118,28 @@ wss.on("connection", (ws, req) => {
               `[${new Date().toISOString()}] sending userlist message to ${name} (${userId})`
             );
             return ws.send(JSON.stringify(userListMessageObj));
+          case "unsay":
+            if (!botIsActive) {
+              // send error message
+              const errorMessageObj = {
+                user: "server",
+                message: `"unsay" command only works when a chatbot is active`,
+                timestamp: Date.now(),
+              };
+              cLog(
+                `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
+              );
+              cLog(errorMessageObj.message, "verbose");
+              return ws.send(JSON.stringify(errorMessageObj));
+            }
+            // remove last message and response from bot conversation
+            const removed = chatRooms.chatbot.removeLastMessage(origin, userId);
+            const unsayResponseMessage = removed ? `Somehow, you manage to unsay the last thing you said to ${chatRooms.chatbot.name}.` : `You haven't said anything to ${chatRooms.chatbot.name} yet.`;
+            return ws.send(JSON.stringify({
+              user: "server",
+              message: unsayResponseMessage,
+              timestamp: Date.now(),
+            }));
           default:
             // send error message
             const errorMessageObj = {
@@ -134,11 +157,11 @@ wss.on("connection", (ws, req) => {
       cLog(
         `[${new Date().toISOString()}] incoming message from ${name} (${userId})`
       );
-      cLog(message, "verbose");
+      cLog(decodedMessage, "verbose");
       // check if bot is active and message contains wakeword
       if (
         botIsActive &&
-        message.toLowerCase().includes(chatRooms.chatbot.wakeword.toLowerCase())
+        decodedMessage.toLowerCase().includes(chatRooms.chatbot.wakeword.toLowerCase())
       ) {
         cLog(
           `[${new Date().toISOString()}] echoing message back to ${name} (${userId})`
@@ -148,7 +171,7 @@ wss.on("connection", (ws, req) => {
 
         // get response from bot
         const botResponse = await chatRooms.chatbot.converse(
-          message,
+          decodedMessage,
           origin,
           userId
         );

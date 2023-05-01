@@ -75,6 +75,10 @@ const users = () => {
   return say("/users");
 };
 
+const unsay = () => {
+  return say("/unsay");
+};
+
 const join = (nicknameOrArrayWithNickname) => {
   const name = Array.isArray(nicknameOrArrayWithNickname)
     ? nicknameOrArrayWithNickname[0]
@@ -109,6 +113,7 @@ const showHelp = () => {
   logHelp("  save - save chat log to file");
   logHelp("  load - load chat log from file");
   logHelp("  clear - clear console");
+  logHelp("  unsay - remove last message and response from chatbot conversation (if any)");
   logHelp("  help - show this help message");
   return variableWidthDivider();
 };
@@ -189,6 +194,7 @@ bindCommandToGetter(showChatLog, [...getCases("log"), ...getCases("history")]);
 bindCommandToGetter(save, [...getCases("save"), ...getCases("export")]);
 bindCommandToGetter(load, [...getCases("load"), ...getCases("import"), ...getCases("replay")]);
 bindCommandToGetter(clear, getCases("clear"));
+bindCommandToGetter(unsay, [...getCases("unsay"), ...getCases("undo")]);
 
 // log title and help message
 logTitle("chat-console");

@@ -185,6 +185,16 @@ class ChatBot {
       return `Sorry, I'm having trouble understanding you. Please try again.`;
     }
   }
+
+  removeLastMessage(origin, userId) {
+    const messages = this.conversations[origin]?.[userId];
+    if (!messages || messages.length < 2) {
+      return false;
+    }
+    messages.splice(-2, 2);
+    return messages;
+  }
+
 }
 
 export default ChatBot;
