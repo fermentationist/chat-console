@@ -26,7 +26,7 @@ class ChatRooms {
     }
     if (
       this.RESERVED_NAMES.map((name) => name.toLowerCase()).includes(
-        nickname.toLowerCase()
+        nickname?.toLowerCase()
       )
     ) {
       throw new Error(`${nickname} is a reserved name`);

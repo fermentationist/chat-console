@@ -137,6 +137,12 @@ wss.on("connection", (ws, req) => {
         botIsActive &&
         message.toLowerCase().includes(chatRooms.chatbot.wakeword.toLowerCase())
       ) {
+        cLog(
+          `[${new Date().toISOString()}] echoing message back to ${name} (${userId})`
+          );
+        // echoing message back to user
+        ws.send(JSON.stringify({ user: `${name} (to bot)`, message, timestamp: Date.now() }));
+
         // get response from bot
         const botResponse = await chatRooms.chatbot.converse(
           message,

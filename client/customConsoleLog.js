@@ -12,6 +12,14 @@ export const logInline = (stringSegmentArray, styleArray) => {
   console.log(stringSegments, ...styleArray);
 };
 
+export const logMessage = (username, message, timestamp) => {
+  if (username === "server") {
+    logServerMessage(message, timestamp);
+  } else {
+    logUserMessage(username, message, timestamp);
+  }
+}
+
 export const logUserMessage = (userName, message, timestamp) => {
   const date = new Date(timestamp);
   const time = date.toLocaleTimeString();
