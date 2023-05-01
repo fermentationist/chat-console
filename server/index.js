@@ -167,7 +167,7 @@ wss.on("connection", (ws, req) => {
           `[${new Date().toISOString()}] echoing message back to ${name} (${userId})`
           );
         // echoing message back to user
-        ws.send(JSON.stringify({ user: `${name} (to bot)`, message, timestamp: Date.now() }));
+        ws.send(JSON.stringify({ user: `${name} (to ${chatRooms.chatbot.name})`, message, timestamp: Date.now() }));
 
         // get response from bot
         const botResponse = await chatRooms.chatbot.converse(
