@@ -153,7 +153,7 @@ class ChatBot {
 
   async converse(userInput, origin, userId) {
     if (this.userHasPendingUncancelledRequest(origin, userId)) {
-      return `Please wait while I finish responding to your previous message. If you don't want to wait, type "cancel" to cancel your previous message and start a new conversation.`;
+      return `Please wait while I finish responding to your previous message. If you don't want to wait, type "cancel" to cancel your previous message.`;
     }
     let request;
     try {
