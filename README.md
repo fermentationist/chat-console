@@ -22,6 +22,7 @@ To use the chat client, you must first open the browser's JavaScript console. Th
 - **save** - Save the current chat log to text file. You will be prompted for a filename and location.
 - **load** - Load chat log from file and display it in the console. You will be prompted for a filename and location.
 - **clear** - Clear the console.
+- **cancel** - Cancel the pending chatbot response. If you have sent a message to the chatbot, but have not yet received a response, you can cancel the request with this command.
 - **unsay** - Remove the last user message and chatbot response from the chatbot conversation. Each time you interact with the chatbot, all of your previous interactions for that session are sent along with the current message. The chatbot has no memory of the conversation otherwise, and it uses this message log for context. If you use `unsay` to undo one or more chatbot interactions, the chatbot will no longer have any "memory" of the "unsaid" correspondence. (Note that this command does not remove the message from the user's local chat log.)
 - **help** - Display the help message.
 
