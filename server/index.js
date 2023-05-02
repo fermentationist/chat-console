@@ -10,16 +10,21 @@ const WAKE_SERVER_INTERVAL =
   (process.env.WAKE_SERVER_INTERVAL &&
     parseInt(process.env.WAKE_SERVER_INTERVAL)) ??
   1000 * 60 * 14; // 14 minutes
-
 const WAKE_SERVER_NAP_START = process.env.WAKE_SERVER_NAP_START;
 const WAKE_SERVER_NAP_END = process.env.WAKE_SERVER_NAP_END;
 const SOCKET_PING_INTERVAL = 1000 * 60; // 1 minute
 const ACTIVATE_BOT = process.env.ACTIVATE_BOT === "true" ? true : false;
-const BOT_ENABLED_HOSTNAMES =
-  (process.env.BOT_ENABLED_HOSTNAMES &&
-    JSON.parse(process.env.BOT_ENABLED_HOSTNAMES)) ??
-  [];
+let BOT_ENABLED_HOSTNAMES;
+try {
+  BOT_ENABLED_HOSTNAMES = process.env.BOT_ENABLED_HOSTNAMES && JSON.parse(process.env.BOT_ENABLED_HOSTNAMES);
+  if (!Array.isArray(BOT_ENABLED_HOSTNAMES)) {
+    throw new Error();
+  }
+} catch (err) {
+  BOT_ENABLED_HOSTNAMES = [];
+}
 const VERBOSE_LOGS = process.env.VERBOSE_LOGS === "true" ? true : false;
+
 const httpServer = http.createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
 
@@ -72,7 +77,7 @@ wss.on("connection", (ws, req) => {
       .replace(/^(?:https?:\/\/)?(?:www\.)?/i, "")
       .split(/[\/:]/)[0];
     const botIsActive =
-      ACTIVATE_BOT && BOT_ENABLED_HOSTNAMES.includes(hostname);
+      ACTIVATE_BOT && (BOT_ENABLED_HOSTNAMES.includes(hostname) || BOT_ENABLED_HOSTNAMES.includes("*"));
 
     // send list of users in room to new connection
     const userListMessageObj = getUserListMessageObj(botIsActive);
@@ -227,10 +232,11 @@ wss.on("connection", (ws, req) => {
     });
   } catch (error) {
     console.error("Websocket connection error:", error);
+    const message = error.name === "invalid_nickname" ? error.message : "A server error occurred";
     ws.send(
       JSON.stringify({
         user: "server",
-        message: "A server error occurred",
+        message,
         timestamp: Date.now(),
       })
     );

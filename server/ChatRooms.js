@@ -1,5 +1,6 @@
 import "dotenv/config.js";
 import ChatBot from "./ChatBot.js";
+import opError from "./error.js";
 
 class ChatRooms {
   BOT_NAME = process.env.BOT_NAME ?? "ChatBot";
@@ -19,17 +20,17 @@ class ChatRooms {
 
   addConnection(origin, connection, nickname) {
     const nicknameExists = this.connections[origin]?.some(
-      (connection) => connection.name.toLowerCase() === nickname.toLowerCase()
+      (connection) => connection.name.toLowerCase() === nickname?.toLowerCase()
     );
     if (nicknameExists) {
-      throw new Error(`nickname ${nickname} already used`);
+      throw opError("invalid_nickname", `nickname ${nickname} already used`);
     }
     if (
       this.RESERVED_NAMES.map((name) => name.toLowerCase()).includes(
         nickname?.toLowerCase()
       )
     ) {
-      throw new Error(`${nickname} is a reserved name`);
+      throw opError("invalid_nickname", `${nickname} is a reserved name`);
     }
     if (!this.connections[origin]) {
       this.connections[origin] = [];
@@ -51,7 +52,7 @@ class ChatRooms {
       (connection) => connection.id === userId
     );
     if (!connection) {
-      throw new Error(`connection ${userId} not found`);
+      throw opError("invalid_recipient", `connection ${userId} not found`);
     }
     connection.connection.send(data);
   }

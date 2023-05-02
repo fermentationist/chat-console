@@ -29,9 +29,13 @@ To use the chat client, you must first open the browser's JavaScript console. Th
 
 ## Server Use
 
-To use the app, you must first install the dependencies with `npm install`. Then, you can start the server with `npm start`. The server will listen on port 8080 by default.
+1. **Clone the repo** - `git clone https://github.com/fermentaionist/chat-console.git`
+2. **Install dependencies** - `cd chat-console`, then`npm install`
+3. **Start the server** - `npm start`
 
-To add the client to a web page, add the following script tag to the page, replacing `yourserver.tld` with the hostname of your chat server:
+The server will listen on port 8080 by default.
+
+* To add the client to a web page, add the following script tag to the page, replacing `yourserver.tld` with the hostname of your chat server:
 
 ```html
 <script async src="https://yourserver.tld/chatConsole.js" type="module" ></script>
@@ -39,9 +43,22 @@ To add the client to a web page, add the following script tag to the page, repla
 
 The chat server is configured to create a separate chat room for each hostname that connects to it. This means that if you have multiple websites, you can add the client to each of them, and each website will have its own chat room.
 
-If you want to use the chatbot, you must first create an account with [OpenAI](https://beta.openai.com/). Once you have an account, you can get an API key from the [API settings page](https://beta.openai.com/account/api-keys). Once you have an API key, you can add it to the server's environment variables as `OPENAI_API_KEY`.
+### Chatbot
 
-If you are using a free service to host your server that spins down and sleeps when not used for a while (like render.com), you can use the `WAKE_SERVER_URL` and `WAKE_SERVER_INTERVAL` environment variables to keep the server awake. The server will make a fetch call to the URL every `WAKE_SERVER_INTERVAL` milliseconds.
+1. **Create an account with OpenAI** - [OpenAI](https://platform.openai.com/)
+2. **Get an API key** - OpenAI [API settings page](https://platform.openai.com/account/api-keys)
+3. **Add API key to server environment variables** - `OPENAI_API_KEY=yourkey`
+4. **Set `ACTIVATE_BOT` environment variable** - `ACTIVATE_BOT=true`
+5. **Activate chatbot for all hosts, or specific hosts** - The value of the `BOT_ENABLED_HOSTNAMES` environment variable must be an array. To activate the chatbot for all hostnames, simply add a `*` to the array: `BOT_ENABLED_HOSTNAMES=["*"]`. To enable the chatbot for selected hostnames only, add the hostnames to the array: `BOT_ENABLED_HOSTNAMES=["yourserver.tld", "yourserver2.tld"]`. If a hostname is not listed, that host's chat room will have no chatbot.
+6. **Set chatbot name** - `BOT_NAME=yourbotname` (optional) This is the name that will be displayed in the chat room when the chatbot sends a message. If not included, the default value of "ChatBot" will be used.
+7. **Set chatbot instructions** - `BOT_INSTRUCTIONS="your instructions"` (optional) If provided, will be used as the chatbot's system prompt to define its behavior. Refer to the AI as "the assistant" when formulating instructions. (e.g. "The assistant is a chatbot that answers questions about the weather.")
+
+### Keeping the Server Awake
+If you are using a free service to host your server that spins down and sleeps when not used for a while, you can use the `WAKE_SERVER_URL` and `WAKE_SERVER_INTERVAL` environment variables to keep the server awake. The server will make a fetch call to the URL every `WAKE_SERVER_INTERVAL` milliseconds. 
+
+*Using this method to keep the server awake may even be necessary in case the server doesn't "count" active websocket connections as activity, causing it to sleep while users are still connected.*
+
+Since free hosting services may limit the number of hours per month that your server can be up and running, you might only want the server to wake up during certain hours of the day. You can use the `WAKE_SERVER_START_HOUR` and `WAKE_SERVER_END_HOUR` environment variables to set the hours during which the server should wake up. The server will only make fetch calls to keep itself awake if it is already awake, and if the current hour is between `WAKE_SERVER_START_HOUR` and `WAKE_SERVER_END_HOUR`. If these variables are not set, the server will wake up at all hours. (WARNING: Since the server will spin down when not in use, it will not be able to wake itself up at the start of the next day. There is of course, no way to circumvent this limitation without having a server that is always running somewhere.)
 
 ### Environment Variables
 
@@ -56,6 +73,7 @@ If you are using a free service to host your server that spins down and sleeps w
 - **`WAKE_SERVER_INTERVAL`** - milliseconds to wait between calls to WAKE_SERVER_URL
 - **`WAKE_SERVER_NAP_START`** - time (HH:MM) to stop waking server, if not present, no naptime will be set
 - **`WAKE_SERVER_NAP_END`** - time (HH:MM) to resume waking server, if not present, no naptime will be set
+
 ---
 
 ### License
