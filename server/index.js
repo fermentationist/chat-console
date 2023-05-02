@@ -111,10 +111,12 @@ wss.on("connection", (ws, req) => {
         null,
         new Uint16Array(arrayBufData)
       );
-      // check if message is a command
       const decodedMessage = decodeURIComponent(message);
+      // check if message is a command
       if ((decodedMessage).startsWith("/")) {
         const command = decodedMessage.slice(1);
+
+        // COMMANDS
         switch (command) {
           case "users":
             // send list of users in room
@@ -143,6 +145,28 @@ wss.on("connection", (ws, req) => {
             return ws.send(JSON.stringify({
               user: "server",
               message: unsayResponseMessage,
+              timestamp: Date.now(),
+            }));
+          case "cancel":
+            if (!botIsActive) {
+              // send error message
+              const errorMessageObj = { 
+                user: "server",
+                message: `"cancel" command only works when a chatbot is active`,
+                timestamp: Date.now(),
+              };
+              cLog(
+                `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
+              );
+              cLog(errorMessageObj.message, "verbose");
+              return ws.send(JSON.stringify(errorMessageObj));
+            }
+            // cancel pending bot completion
+            const cancelled = chatRooms.chatbot.cancelPending(origin, userId);
+            const message = cancelled ? `Your pending request to ${chatRooms.chatbot.name} has been cancelled.` : `You don't have any pending requests to ${chatRooms.chatbot.name}.`;
+            return ws.send(JSON.stringify({
+              user: "server",
+              message,
               timestamp: Date.now(),
             }));
           default:
@@ -180,6 +204,11 @@ wss.on("connection", (ws, req) => {
           origin,
           userId
         );
+        // check for cancellation
+        if (botResponse === null) {
+          // request was cancelled, do nothing
+          return;
+        }
         // send response from bot
         const botResponseObj = {
           user: `${chatRooms.chatbot.name} (bot)`,

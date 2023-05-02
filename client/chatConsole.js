@@ -80,6 +80,10 @@ const unsay = () => {
   return say("/unsay");
 };
 
+const cancel = () => {
+  return say("/cancel");
+};
+
 const join = (nicknameOrArrayWithNickname) => {
   const name = Array.isArray(nicknameOrArrayWithNickname)
     ? nicknameOrArrayWithNickname[0]
@@ -114,6 +118,7 @@ const showHelp = () => {
   logHelp("  save - save chat log to file");
   logHelp("  load - load chat log from file");
   logHelp("  clear - clear console");
+  logHelp("  cancel - cancel pending request to chatbot");
   logHelp("  unsay - remove last message and response from chatbot conversation (if any)");
   logHelp("  help - show this help message");
   return variableWidthDivider();
@@ -196,6 +201,7 @@ bindCommandToGetter(save, [...getCases("save"), ...getCases("export")]);
 bindCommandToGetter(load, [...getCases("load"), ...getCases("import"), ...getCases("replay")]);
 bindCommandToGetter(clear, getCases("clear"));
 bindCommandToGetter(unsay, [...getCases("unsay"), ...getCases("undo")]);
+bindCommandToGetter(cancel, [...getCases("cancel"), ...getCases("stop")]);
 
 // log title and help message
 logTitle("chat-console");
