@@ -14,9 +14,9 @@ export const logInline = (stringSegmentArray, styleArray) => {
 
 export const logMessage = (username, message, timestamp) => {
   if (username === "server") {
-    logServerMessage(decodeURIComponent(message), timestamp);
+    logServerMessage(message, timestamp);
   } else {
-    logUserMessage(username, decodeURIComponent(message), timestamp);
+    logUserMessage(username, message, timestamp);
   }
 }
 

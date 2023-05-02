@@ -27,13 +27,11 @@ To use the chat client, you must first open the browser's JavaScript console. Th
 
 ---
 
-## Development
-
-### Use
+## Server Use
 
 To use the app, you must first install the dependencies with `npm install`. Then, you can start the server with `npm start`. The server will listen on port 8080 by default.
 
-To add the client to a web page, add the following script tag to the page, replacing `yourserver.tld` with the hostname of your server:
+To add the client to a web page, add the following script tag to the page, replacing `yourserver.tld` with the hostname of your chat server:
 
 ```html
 <script async src="https://yourserver.tld/chatConsole.js" type="module" ></script>
@@ -46,7 +44,6 @@ If you want to use the chatbot, you must first create an account with [OpenAI](h
 If you are using a free service to host your server that spins down and sleeps when not used for a while (like render.com), you can use the `WAKE_SERVER_URL` and `WAKE_SERVER_INTERVAL` environment variables to keep the server awake. The server will make a fetch call to the URL every `WAKE_SERVER_INTERVAL` milliseconds.
 
 ### Environment Variables
-
 
 - **`PORT`** - The port on which the https server will listen, if not included, default value of 8080 will be used
 - **`OPENAI_API_KEY`** - needed to connect to the OpenAI API, to power chatbot if used
@@ -63,7 +60,7 @@ If you are using a free service to host your server that spins down and sleeps w
 
 ### License
 
-#### Copyright © 2023, [Dennis Hodges](https://dennis-hodges.com)
+#### Copyright © 2023 [Dennis Hodges](https://dennis-hodges.com)
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 

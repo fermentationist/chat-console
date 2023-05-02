@@ -39,10 +39,10 @@ const getNewSocketConnection = () => {
   };
 
   ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    const { user, message, timestamp } = data;
-    chatLog.push(data);
-    logMessage(user, message, timestamp);
+    const { user, message, timestamp } = JSON.parse(event.data);
+    const decodedMessage = decodeURIComponent(message);
+    chatLog.push({user, message: decodedMessage, timestamp});
+    logMessage(user, decodedMessage, timestamp);
   };
 
   ws.onerror = (error) => {
@@ -66,6 +66,7 @@ const say = (messageOrArrayWithMessage) => {
     const message = Array.isArray(messageOrArrayWithMessage)
       ? messageOrArrayWithMessage[0]
       : messageOrArrayWithMessage;
+    // using encodeURIComponent to allow for special characters
     ws.send(encodeURIComponent(message));
   }
   return variableWidthDivider();
