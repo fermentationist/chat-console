@@ -14,8 +14,8 @@ The app also uses the [OpenAI GPT-3.5 API](https://platform.openai.com/docs/api-
 To use the chat client, you must first open the browser's JavaScript console. This can be done by pressing `F12` in most browsers. Once the console is open, you can use the following commands:
 
 - **connect** - Connect to the chat room with the previously used nickname, or anonymously if no nickname was used
-- **join \`\<nickname>\`** - Connect to the chat room with a nickname. Enclose the nickname in **backticks**. (be sure to use *backticks*, not apostrophes!)
-- **say \`\<message>\`** - Send a message to the chat room. Enclose the message in **backticks**.
+- **join \`**\<nickname>**\`** - Connect to the chat room with a nickname. Enclose the nickname in **backticks**. (be sure to use *backticks*, not apostrophes!)
+- **say \`**\<message>**\`** - Send a message to the chat room. Enclose the message in **backticks**.
 - **users** - List current users present in the chat room.
 - **logout** - Disconnect from the chat room.
 - **log** - Show the current chat log.
