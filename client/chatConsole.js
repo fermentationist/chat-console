@@ -24,7 +24,7 @@ const socketServerUrl = scriptUrl.replace("chatConsole.js", "");
 const [httpProtocol, host] = socketServerUrl.split("://");
 
 const wsProtocol = httpProtocol === "https" ? "wss" : "ws";
-
+const isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
 // ==================== UTILITY FUNCTIONS ====================
 const isConnected = () => {
   if (!ws || ws.readyState !== 1) {
@@ -172,6 +172,12 @@ const save = () => {
 };
 
 const load = () => {
+  if (isFirefox) {
+    logWarning(
+      "WARNING: Firefox does not support loading chat logs. Please try a different browser."
+    );
+    return variableWidthDivider();
+  }
   logInfo("loading chat log...");
   const input = document.createElement("input");
   input.type = "file";
