@@ -5,7 +5,8 @@ import opError from "./error.js";
 class ChatRooms {
   BOT_NAME = process.env.BOT_NAME ?? "ChatBot";
   BOT_WAKEWORD = process.env.BOT_WAKEWORD ?? this.BOT_NAME;
-  RESERVED_NAMES = ["chatbot", "server", "bot", this.BOT_NAME, this.BOT_WAKEWORD];
+  BOT_ALIASES = ["chatbot", "bot", this.BOT_NAME, this.BOT_WAKEWORD];
+  RESERVED_NAMES = ["server", ...this.BOT_ALIASES];
 
   constructor() {
     this.connections = {};
@@ -18,25 +19,25 @@ class ChatRooms {
     return `${timestamp}-${random}`;
   }
 
-  addConnection(origin, connection, nickname) {
-    const nicknameExists = this.connections[origin]?.some(
-      (connection) => connection.name.toLowerCase() === nickname?.toLowerCase()
+  addConnection(origin, connection, handle) {
+    const handleExists = this.connections[origin]?.some(
+      (connection) => connection.name.toLowerCase() === handle?.toLowerCase()
     );
-    if (nicknameExists) {
-      throw opError("invalid_nickname", `nickname ${nickname} already used`);
+    if (handleExists) {
+      throw opError("invalid_handle", `handle ${handle} already used`);
     }
     if (
       this.RESERVED_NAMES.map((name) => name.toLowerCase()).includes(
-        nickname?.toLowerCase()
+        handle?.toLowerCase()
       )
     ) {
-      throw opError("invalid_nickname", `${nickname} is a reserved name`);
+      throw opError("invalid_handle", `${handle} is a reserved name`);
     }
     if (!this.connections[origin]) {
       this.connections[origin] = [];
     }
     const id = this.getUid();
-    this.connections[origin].push({ id, connection, name: nickname ?? id });
+    this.connections[origin].push({ id, connection, name: handle ?? id });
     return id;
   }
 
@@ -72,7 +73,7 @@ class ChatRooms {
     );
   }
 
-  getNicknames(origin) {
+  getHandles(origin) {
     return this.connections[origin].map((connection) => connection.name);
   }
 }

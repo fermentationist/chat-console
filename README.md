@@ -13,17 +13,21 @@ The app also uses the [OpenAI GPT-3.5 API](https://platform.openai.com/docs/api-
 
 To use the chat client, you must first open the browser's JavaScript console. This can be done by pressing `F12` in most browsers. Once the console is open, you can use the following commands:
 
-- **connect** - Connect to the chat room with the previously used nickname, or anonymously if no nickname was used
-- **join \`**\<nickname>**\`** - Connect to the chat room with a nickname. Enclose the nickname in **backticks**. (be sure to use *backticks*, not apostrophes!)
+- **connect** - Connect to the chat room with the previously used handle, or anonymously if no handle was used
+- **join \`**\<handle>**\`** - Connect to the chat room with a handle. Enclose the handle in **backticks**. (be sure to use *backticks*, not apostrophes!)
 - **say \`**\<message>**\`** - Send a message to the chat room. Enclose the message in **backticks**.
+- **bot \`**\<message>**\`** - Send a message to the chatbot. Enclose the message in **backticks**. The chatbot will respond with a message of its own.
+- **to \`**\<handle>**\`** - Set the recipient for private messages. Enclose the handle in **backticks**.
+- **pm \`**\<message>**\`** - Send a private message to the previously specified (using "to") recipient. Enclose the message in **backticks**.
 - **users** - List current users present in the chat room.
 - **logout** - Disconnect from the chat room.
+- **cancel** - Cancel the pending chatbot response. If you have sent a message to the chatbot, but have not yet received a response, you can cancel the request with this command.
+- **undo** - Remove the last user message and chatbot response from the chatbot conversation. Each time you interact with the chatbot, all of your previous interactions for that session are sent along with the current message. The chatbot has no memory of the conversation otherwise, and it uses this message log for context. If you use `undo` to undo one or more chatbot interactions, the chatbot will no longer have any "memory" of the "undone" correspondence. (Note that this command does not remove the message from the user's local chat log.)
+- **forget** - Remove all messages and responses from chatbot conversation.
 - **log** - Show the current chat log.
+- **clear** - Clear the console.
 - **save** - Save the current chat log to text file. You will be prompted for a filename and location.
 - **load** - Load chat log from file and display it in the console. You will be prompted for a filename and location.
-- **clear** - Clear the console.
-- **cancel** - Cancel the pending chatbot response. If you have sent a message to the chatbot, but have not yet received a response, you can cancel the request with this command.
-- **unsay** - Remove the last user message and chatbot response from the chatbot conversation. Each time you interact with the chatbot, all of your previous interactions for that session are sent along with the current message. The chatbot has no memory of the conversation otherwise, and it uses this message log for context. If you use `unsay` to undo one or more chatbot interactions, the chatbot will no longer have any "memory" of the "unsaid" correspondence. (Note that this command does not remove the message from the user's local chat log.)
 - **help** - Display the help message.
 
 ---
@@ -53,6 +57,12 @@ The chat server is configured to create a separate chat room for each hostname t
 5. **Activate chatbot for all hosts, or specific hosts** - The value of the `BOT_ENABLED_HOSTNAMES` environment variable must be an array. To activate the chatbot for all hostnames, simply add a `*` to the array: `BOT_ENABLED_HOSTNAMES=["*"]`. To enable the chatbot for selected hostnames only, add the hostnames to the array: `BOT_ENABLED_HOSTNAMES=["yourserver.tld", "yourserver2.tld"]`. If a hostname is not listed, that host's chat room will have no chatbot.
 6. **Set chatbot name** - `BOT_NAME=yourbotname` (optional) This is the name that will be displayed in the chat room when the chatbot sends a message. If not included, the default value of "ChatBot" will be used.
 7. **Set chatbot instructions** - `BOT_INSTRUCTIONS="your instructions"` (optional) If provided, will be used as the chatbot's system prompt to define its behavior. Refer to the AI as "the assistant" when formulating instructions. (e.g. "The assistant is a chatbot that answers questions about the weather.")
+
+#### Interacting with the Chatbot
+  There are several ways to exchange messages with the chatbot. 
+  * The simplest way is to use the `bot` command in the client console, followed by the message, enclosed in backticks. (e.g. ````bot `Hello, what is the weather like today?` ````) 
+  * The chatbot will also respond to any message sent with the `say` command, that contains its wake-word (the chatbot's name). For example, if the chatbot's name is "ChatBot", you can send it a message by typing ````say `ChatBot, what is the weather like today?` ```` in the client console. Unlike other messages sent with `say`, messages sent to the chatbot in this way will not be sent to other users in the chat room.
+  * Finally, you can also send a message to the chatbot by using the `pm` command in the client console. Simply set the recipient to the chatbot's name using the `to` command, and then send a message with `pm`. (e.g. ````to `ChatBot` ```` followed by ````pm `What is the weather like today?` ````)
 
 ### Keeping the Server Awake
 If you are using a free service to host your server that spins down and sleeps when not used for a while, you can use the `WAKE_SERVER_URL` and `WAKE_SERVER_INTERVAL` environment variables to keep the server awake. The server will make a fetch call to the URL every `WAKE_SERVER_INTERVAL` milliseconds. 

@@ -50,27 +50,40 @@ wss.on("connection", (ws, req) => {
   const heartbeat = () => (ws.isAlive = true);
   const getUserListMessageObj = (botIsActive) => ({
     user: "server",
-    message: `Users in room: ${chatRooms.getNicknames(origin).join(", ")}${
+    message: `Users in room: ${chatRooms.getHandles(origin).join(", ")}${
       botIsActive ? `, ${chatRooms.chatbot.name} (bot)` : ""
     }`,
     timestamp: Date.now(),
   });
 
   try {
-    const [_, encodedNickname] = req.url.split("?nickname=");
-    const nickname =
-      encodedNickname && decodeURIComponent(encodedNickname).trim();
-    const userId = chatRooms.addConnection(origin, ws, nickname);
-    const name = nickname ?? userId;
+    const [_, encodedHandle] = req.url.split("?handle=");
+    const handle =
+      encodedHandle && decodeURIComponent(encodedHandle).trim();
+    const userId = chatRooms.addConnection(origin, ws, handle);
+    const name = handle ?? userId;
     cLog(
       `[${new Date().toISOString()}] new connection from ${origin}${
-        nickname ? ` with nickname ${nickname}` : ""
+        handle ? ` with handle ${handle}` : ""
       }, assigned id ${userId}`
     );
 
     //==========================================================================
     // MESSAGE HANDLING METHODS
     //==========================================================================
+    const sendBotInactiveError = (command) => {
+      const errorMessageObj = {
+        user: "server",
+        message: `"${command}" command only works when a chatbot is active`,
+        timestamp: Date.now(),
+      };
+      cLog(
+        `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
+      );
+      cLog(errorMessageObj.message, "verbose");
+      return ws.send(JSON.stringify(errorMessageObj));
+    };
+
     const executeCommand = (command) => {
       // COMMANDS
       switch (command) {
@@ -81,19 +94,10 @@ wss.on("connection", (ws, req) => {
             `[${new Date().toISOString()}] sending userlist message to ${name} (${userId})`
           );
           return ws.send(JSON.stringify(userListMessageObj));
-        case "unsay":
+        case "undo":
           if (!botIsActive) {
             // send error message
-            const errorMessageObj = {
-              user: "server",
-              message: `"unsay" command only works when a chatbot is active`,
-              timestamp: Date.now(),
-            };
-            cLog(
-              `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
-            );
-            cLog(errorMessageObj.message, "verbose");
-            return ws.send(JSON.stringify(errorMessageObj));
+            return sendBotInactiveError("undo");
           }
           // remove last message and response from bot conversation
           const removed = chatRooms.chatbot.removeLastMessage(origin, userId);
@@ -110,16 +114,7 @@ wss.on("connection", (ws, req) => {
         case "cancel":
           if (!botIsActive) {
             // send error message
-            const errorMessageObj = {
-              user: "server",
-              message: `"cancel" command only works when a chatbot is active`,
-              timestamp: Date.now(),
-            };
-            cLog(
-              `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
-            );
-            cLog(errorMessageObj.message, "verbose");
-            return ws.send(JSON.stringify(errorMessageObj));
+            return sendBotInactiveError("cancel");
           }
           // cancel pending bot completion
           const cancelled = chatRooms.chatbot.cancelPending(origin, userId);
@@ -133,6 +128,24 @@ wss.on("connection", (ws, req) => {
               timestamp: Date.now(),
             })
           );
+        case "forget":
+          if (!botIsActive) {
+            // send error message
+            return sendBotInactiveError("forget");
+          }
+          // forget all messages and responses from bot conversation
+          const forgotten = chatRooms.chatbot.forget(origin, userId);
+          const forgetResponseMessage = forgotten
+            ? `${chatRooms.chatbot.name} forgets everything you've ever said to them.`
+            : `You haven't said anything to ${chatRooms.chatbot.name} yet.`;
+          return ws.send(
+            JSON.stringify({
+              user: "server",
+              message: forgetResponseMessage,
+              timestamp: Date.now(),
+            })
+          );
+
         default:
           // send error message
           const errorMessageObj = {
@@ -186,7 +199,8 @@ wss.on("connection", (ws, req) => {
       const botResponse = await chatRooms.chatbot.converse(
         message,
         origin,
-        userId
+        userId,
+        name
       );
       // check for cancellation
       if (botResponse === null) {
@@ -278,7 +292,7 @@ wss.on("connection", (ws, req) => {
           `[${new Date().toISOString()}] incoming message from ${name} (${userId})`
         );
         cLog(decodedMessage, "verbose");
-  
+
         // check if message is a command or private message
         if (decodedMessage.startsWith("/")) {
           const commandMessage = decodedMessage.slice(1);
@@ -288,9 +302,7 @@ wss.on("connection", (ws, req) => {
             const remainingMessage = remainingMessageArr.join("/");
             const recipient = command.slice(1, -1);
             // check if recipient is chatbot
-            if (
-              recipient.toLowerCase() === chatRooms.chatbot.name.toLowerCase()
-            ) {
+            if (chatRooms.BOT_ALIASES.includes(recipient.toLowerCase())) {
               if (!botIsActive) {
                 throw opError("invalid_command", "Chatbot is not active");
               }
@@ -319,12 +331,16 @@ wss.on("connection", (ws, req) => {
         }
       } catch (error) {
         console.error("Error handling message:", error);
-        const message = ENUMERATED_ERRORS.includes(error.name) ? error.message : "An error occurred";
-        ws.send(JSON.stringify({
-          user: "server",
-          message,
-          timestamp: Date.now(),
-        }))
+        const message = ENUMERATED_ERRORS.includes(error.name)
+          ? error.message
+          : "An error occurred";
+        ws.send(
+          JSON.stringify({
+            user: "server",
+            message,
+            timestamp: Date.now(),
+          })
+        );
       }
     });
 

@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Configuration, OpenAIApi } from "openai";
 
 const BOT_INSTRUCTIONS = process.env.BOT_INSTRUCTIONS;
+const TOKEN_LIMIT = Math.floor(Math.round(4097 * 0.75));
 
 class ChatBotRequest {
   cancelled = false;
@@ -12,9 +13,11 @@ class ChatBotRequest {
     this.messages = messages;
     this.openai = openai;
     this.model = model ?? "gpt-3.5-turbo-0301";
-    this.TOKEN_LIMIT = tokenLimit ?? Math.round(4097 * 0.75);
+    this.TOKEN_LIMIT = tokenLimit ?? TOKEN_LIMIT;
+    const estimate = ChatBotRequest.tokenEstimate(this.messages);
     // trim the messages array to the token limit
-    while (ChatBotRequest.tokenEstimate(this.messages) > this.TOKEN_LIMIT) {
+    console.log("Estimated prompt tokens:", estimate);
+    while (estimate > this.TOKEN_LIMIT) {
       // Remove the second and third messages from the array, which are the oldest user message and the oldest bot response
       if (this.messages.length < 3) {
         break;
@@ -105,12 +108,12 @@ class ChatBot {
     this.greeting = `Hello, my name is ${this.name} and I am a chatbot. \nTo speak to me, type a message that contains my wake-word, "${this.wakeword}". I will respond to you as soon as I can. To continue our conversation, each message you send must contain the wake-word. \nOur conversation is private; messages containing the wake-word will not be broadcast to other users, nor will my responses to you. \n(WARNING: All messages that do NOT contain the wake-word WILL be broadcast to all other users. I will NOT respond to messages that do not contain the wake-word.)`;
   }
 
-  getSystemPrompt(origin) {
+  getSystemPrompt(origin, userHandle) {
     return {
       role: "system",
-      content: `The following is a conversation with an AI assistant named ${
+      content: `The following is a conversation between an AI assistant named ${
         this.name
-      }. ${this.getBotInstructions(origin)}`,
+      } and a user, named ${userHandle}. ${this.getBotInstructions(origin)}`,
     };
   }
 
@@ -151,7 +154,7 @@ class ChatBot {
     return pendingRequests.some((request) => !request.cancelled);
   }
 
-  async converse(userInput, origin, userId) {
+  async converse(userInput, origin, userId, userHandle) {
     if (this.userHasPendingUncancelledRequest(origin, userId)) {
       return `Please wait while I finish responding to your previous message. If you don't want to wait, type "cancel" to cancel your previous message.`;
     }
@@ -165,7 +168,7 @@ class ChatBot {
         this.conversations[origin] = {};
       }
       const previousConversation = this.conversations[origin][userId] || [
-        this.getSystemPrompt(origin),
+        this.getSystemPrompt(origin, userHandle),
       ];
       const newMessage = {
         role: "user",
@@ -238,6 +241,17 @@ class ChatBot {
     messages.splice(-2, 2);
     return messages;
   }
+
+  forget (origin, userId) {
+    const messages = this.conversations[origin]?.[userId];
+    if (!messages) {
+      return false;
+    }
+    const clearedMessages = messages.slice(0, 1);
+    this.conversations[origin][userId] = clearedMessages;
+    return clearedMessages;
+  }
+
 }
 
 export default ChatBot;

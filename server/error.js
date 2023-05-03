@@ -10,4 +10,4 @@ export default (name, message, data) => {
   return new CustomError(name, message, data);
 }
 
-export const ENUMERATED_ERRORS = ["invalid_nickname", "invalid_command", "invalid_recipient"];
+export const ENUMERATED_ERRORS = ["invalid_handle", "invalid_command", "invalid_recipient"];

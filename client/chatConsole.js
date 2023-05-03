@@ -16,7 +16,7 @@ import {
 } from "./utils.js";
 
 let chatLog = [];
-let nickname = localStorage.getItem("nickname") || null;
+let handle = localStorage.getItem("handle") || null;
 let ws = null;
 let target = null;
 const scriptUrl = import.meta.url;
@@ -25,12 +25,24 @@ const [httpProtocol, host] = socketServerUrl.split("://");
 
 const wsProtocol = httpProtocol === "https" ? "wss" : "ws";
 
+// ==================== UTILITY FUNCTIONS ====================
+const isConnected = () => {
+  if (!ws || ws.readyState !== 1) {
+    logWarning(
+      `Not connected. Please connect to the chat room first using the "connect" or "join" commands.`
+    );
+    return false;
+  }
+  return true;
+};
+
+// ==================== COMMANDS ====================
 const getNewSocketConnection = () => {
   if (wsProtocol === "ws") {
     logWarning("WARNING: Websocket connection is not secure.");
   }
   const socketUrl = `${wsProtocol}://${host}${
-    nickname ? `?nickname=${nickname}` : ""
+    handle ? `?handle=${handle}` : ""
   }`;
   ws && ws.close();
   ws = new WebSocket(socketUrl);
@@ -42,7 +54,7 @@ const getNewSocketConnection = () => {
   ws.onmessage = (event) => {
     const { user, message, timestamp } = JSON.parse(event.data);
     const decodedMessage = decodeURIComponent(message);
-    chatLog.push({user, message: decodedMessage, timestamp});
+    chatLog.push({ user, message: decodedMessage, timestamp });
     logMessage(user, decodedMessage, timestamp);
   };
 
@@ -58,18 +70,27 @@ const getNewSocketConnection = () => {
   return variableWidthDivider();
 };
 
+const join = (handleOrArrayWithHandle) => {
+  const name = Array.isArray(handleOrArrayWithHandle)
+    ? handleOrArrayWithHandle[0]
+    : handleOrArrayWithHandle;
+  handle = name ?? null;
+  localStorage.setItem("handle", handle);
+  handle && logInfo(`connecting with handle ${handle}`);
+  ws && ws.close();
+  getNewSocketConnection();
+  return variableWidthDivider();
+};
+
 const say = (messageOrArrayWithMessage) => {
-  if (!ws || ws.readyState !== 1) {
-    logWarning(
-      `Not connected. Please connect to the chat room first using the "connect" or "join" commands.`
-    );
-  } else {
-    const message = Array.isArray(messageOrArrayWithMessage)
-      ? messageOrArrayWithMessage[0]
-      : messageOrArrayWithMessage;
-    // using encodeURIComponent to allow for special characters
-    ws.send(encodeURIComponent(message));
+  if (!isConnected()) {
+    return;
   }
+  const message = Array.isArray(messageOrArrayWithMessage)
+    ? messageOrArrayWithMessage[0]
+    : messageOrArrayWithMessage;
+  // using encodeURIComponent to allow for special characters
+  ws.send(encodeURIComponent(message));
   return variableWidthDivider();
 };
 
@@ -78,28 +99,40 @@ const setTarget = (targetOrArrayWithTarget) => {
     ? targetOrArrayWithTarget[0]
     : targetOrArrayWithTarget;
   target = newTarget ?? null;
-  target && logInfo(`Private message recipient set to "${target}". Use the "pm" command to send a private message.`);
+  target &&
+    logInfo(
+      `Private message recipient set to "${target}". Use the "pm" command to send a private message.`
+    );
   return variableWidthDivider();
 };
 
 const pm = (messageOrArrayWithMessage) => {
-  if (!ws || ws.readyState !== 1) {
-    logWarning(
-      `Not connected. Please connect to the chat room first using the "connect" or "join" commands.`
-    );
-  } else {
-    if (!target) {
-      logWarning(
-        `No recipient specified. Please specify a recipient using the "to" command.`
-      );
-      return variableWidthDivider();
-    }
-    const message = Array.isArray(messageOrArrayWithMessage)
-      ? messageOrArrayWithMessage[0]
-      : messageOrArrayWithMessage;
-    // using encodeURIComponent to allow for special characters
-    ws.send(encodeURIComponent(`/{${target}}/${message}`));
+  if (!isConnected()) {
+    return variableWidthDivider();
   }
+  if (!target) {
+    logWarning(
+      `No recipient specified. Please specify a recipient using the "to" command.`
+    );
+    return variableWidthDivider();
+  }
+  const message = Array.isArray(messageOrArrayWithMessage)
+    ? messageOrArrayWithMessage[0]
+    : messageOrArrayWithMessage;
+  // using encodeURIComponent to allow for special characters
+  ws.send(encodeURIComponent(`/{${target}}/${message}`));
+  return variableWidthDivider();
+};
+
+const bot = (messageOrArrayWithMessage) => {
+  if (!isConnected()) {
+    return;
+  }
+  const message = Array.isArray(messageOrArrayWithMessage)
+    ? messageOrArrayWithMessage[0]
+    : messageOrArrayWithMessage;
+  // using encodeURIComponent to allow for special characters
+  ws.send(encodeURIComponent(`/{chatbot}/${message}`));
   return variableWidthDivider();
 };
 
@@ -107,61 +140,22 @@ const users = () => {
   return say("/users");
 };
 
-const unsay = () => {
-  return say("/unsay");
+const undo = () => {
+  return say("/undo");
 };
 
 const cancel = () => {
   return say("/cancel");
 };
 
-const join = (nicknameOrArrayWithNickname) => {
-  const name = Array.isArray(nicknameOrArrayWithNickname)
-    ? nicknameOrArrayWithNickname[0]
-    : nicknameOrArrayWithNickname;
-  nickname = name ?? null;
-  localStorage.setItem("nickname", nickname);
-  nickname && logInfo(`connecting with nickname ${nickname}`);
-  ws && ws.close();
-  getNewSocketConnection();
-  return variableWidthDivider();
+const forget = () => {
+  return say("/forget");
 };
 
 const logout = () => {
   logInfo("disconnecting...");
   ws && ws.close();
   ws = null;
-  return variableWidthDivider();
-};
-
-const showHelp = () => {
-  logHelp("Available commands:");
-  logHelp("  connect - connect to the chat room with previously used nickname, or anonymously if no nickname was used");
-  logHelp(
-    "  join `<nickname>` - connect to the chat room with a nickname (enclose in backticks)"
-  );
-  logHelp(
-    "  say `<message>` - send a message to the chat room (enclose in backticks)"
-  );
-  logHelp("  to `<nickname>` - set recipient for private messages (enclose in backticks)");
-  logHelp("  pm `<message>` - send a private message to the recipient (enclose in backticks)");
-  logHelp("  users - list users in the chat room");
-  logHelp("  logout - disconnect from the chat room");
-  logHelp("  cancel - cancel pending request to chatbot");
-  logHelp("  unsay - remove last message and response from chatbot conversation (if any)");
-  logHelp("  log - show chat log");
-  logHelp("  clear - clear console");
-  logHelp("  save - save chat log to file");
-  logHelp("  load - load chat log from file");
-  logHelp("  help - show this help message");
-  return variableWidthDivider();
-};
-
-const showChatLog = () => {
-  logInfo("printing chat log...");
-  chatLog.forEach(({ user, message, timestamp }) => {
-    logMessage(user, message, timestamp);
-  });
   return variableWidthDivider();
 };
 
@@ -204,7 +198,54 @@ const clear = () => {
   return variableWidthDivider();
 };
 
-// bind commands to window
+const showChatLog = () => {
+  logInfo("printing chat log...");
+  chatLog.forEach(({ user, message, timestamp }) => {
+    logMessage(user, message, timestamp);
+  });
+  return variableWidthDivider();
+};
+
+const showHelp = () => {
+  logHelp("Available commands:");
+  logHelp(
+    "  connect - connect to the chat room with previously used handle, or anonymously if no handle was used"
+  );
+  logHelp(
+    "  join `<handle>` - connect to the chat room with a handle, or change handle (enclose in backticks)"
+  );
+  logHelp(
+    "  say `<message>` - send a message to the chat room (enclose in backticks)"
+  );
+  logHelp(
+    "  bot `<message>` - send a message to the chatbot (enclose in backticks)"
+  );
+  logHelp(
+    "  to `<handle>` - set recipient for private messages (enclose in backticks)"
+  );
+  logHelp(
+    "  pm `<message>` - send a private message to the recipient (enclose in backticks)"
+  );
+  logHelp("  users - list users in the chat room");
+  logHelp("  logout - disconnect from the chat room");
+  logHelp("  cancel - cancel pending request to chatbot");
+  logHelp(
+    "  undo - remove last message and response from chatbot conversation (if any)"
+  );
+  logHelp(
+    "  forget - remove all messages and responses from chatbot conversation"
+  );
+  logHelp("  log - show chat log");
+  logHelp("  clear - clear console");
+  logHelp("  save - save chat log to file");
+  logHelp("  load - load chat log from file");
+  logHelp("  help - show this help message");
+  return variableWidthDivider();
+};
+
+// ==================== STARTUP ====================
+
+// bind CLI commands to window
 bindFunctionToWindow(say, [
   ...getCases("say"),
   ...getCases("send"),
@@ -219,8 +260,13 @@ bindFunctionToWindow(join, [
   ...getCases("login"),
   ...getCases("nick"),
 ]);
-bindFunctionToWindow(pm, [...getCases("pm"), ...getCases("dm"), ...getCases("whisper")]);
+bindFunctionToWindow(pm, [
+  ...getCases("pm"),
+  ...getCases("dm"),
+  ...getCases("whisper"),
+]);
 bindFunctionToWindow(setTarget, [...getCases("target"), ...getCases("to")]);
+bindFunctionToWindow(bot, [...getCases("bot"), ...getCases("chatbot")]);
 
 bindCommandToGetter(getNewSocketConnection, getCases("connect"));
 bindCommandToGetter(logout, [
@@ -230,16 +276,22 @@ bindCommandToGetter(logout, [
   ...getCases("exit"),
 ]);
 bindCommandToGetter(users, [...getCases("users"), ...getCases("who")]);
-bindCommandToGetter(showHelp, [...getCases("help"), ...getCases("h")]);
+bindCommandToGetter(showHelp, [...getCases("help"), "H", "h", "?"]);
 bindCommandToGetter(showChatLog, [...getCases("log"), ...getCases("history")]);
 bindCommandToGetter(save, [...getCases("save"), ...getCases("export")]);
-bindCommandToGetter(load, [...getCases("load"), ...getCases("import"), ...getCases("replay")]);
+bindCommandToGetter(load, [
+  ...getCases("load"),
+  ...getCases("import"),
+  ...getCases("replay"),
+]);
 bindCommandToGetter(clear, getCases("clear"));
-bindCommandToGetter(unsay, [...getCases("unsay"), ...getCases("undo")]);
+bindCommandToGetter(undo, [...getCases("unsay"), ...getCases("undo")]);
 bindCommandToGetter(cancel, [...getCases("cancel"), ...getCases("stop")]);
+bindCommandToGetter(forget, getCases("forget"));
 
 // log title and help message
 logTitle("chat-console");
 logSubtitle("© 2023 Dennis Hodges");
-logInfo("Type 'help' for a list of commands.");
-// showHelp();
+logInfo(
+  `Type "help" for a list of commands, or "connect" to connect immediately.`
+);
