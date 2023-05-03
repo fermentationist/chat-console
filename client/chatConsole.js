@@ -212,40 +212,63 @@ const showChatLog = () => {
   return variableWidthDivider();
 };
 
+// const showHelp = () => {
+//   logHelp("Available commands:");
+//   logHelp(
+//     "  connect - connect to the chat room with previously used handle, or anonymously if no handle was used"
+//   );
+//   logHelp(
+//     "  join `<handle>` - connect to the chat room with a handle, or change handle (enclose in backticks)"
+//   );
+//   logHelp(
+//     "  say `<message>` - send a message to the chat room (enclose in backticks)"
+//   );
+//   logHelp(
+//     "  bot `<message>` - send a message to the chatbot (enclose in backticks)"
+//   );
+//   logHelp(
+//     "  to `<handle>` - set recipient for private messages (enclose in backticks)"
+//   );
+//   logHelp(
+//     "  pm `<message>` - send a private message to the recipient (enclose in backticks)"
+//   );
+//   logHelp("  users - list users in the chat room");
+//   logHelp("  logout - disconnect from the chat room");
+//   logHelp("  cancel - cancel pending request to chatbot");
+//   logHelp(
+//     "  undo - remove last message and response from chatbot conversation (if any)"
+//   );
+//   logHelp(
+//     "  forget - remove all messages and responses from chatbot conversation"
+//   );
+//   logHelp("  log - show chat log");
+//   logHelp("  clear - clear console");
+//   logHelp("  save - save chat log to file");
+//   logHelp("  load - load chat log from file");
+//   logHelp("  help - show this help message");
+//   return variableWidthDivider();
+// };
+
 const showHelp = () => {
-  logHelp("Available commands:");
-  logHelp(
-    "  connect - connect to the chat room with previously used handle, or anonymously if no handle was used"
-  );
-  logHelp(
-    "  join `<handle>` - connect to the chat room with a handle, or change handle (enclose in backticks)"
-  );
-  logHelp(
-    "  say `<message>` - send a message to the chat room (enclose in backticks)"
-  );
-  logHelp(
-    "  bot `<message>` - send a message to the chatbot (enclose in backticks)"
-  );
-  logHelp(
-    "  to `<handle>` - set recipient for private messages (enclose in backticks)"
-  );
-  logHelp(
-    "  pm `<message>` - send a private message to the recipient (enclose in backticks)"
-  );
-  logHelp("  users - list users in the chat room");
-  logHelp("  logout - disconnect from the chat room");
-  logHelp("  cancel - cancel pending request to chatbot");
-  logHelp(
-    "  undo - remove last message and response from chatbot conversation (if any)"
-  );
-  logHelp(
-    "  forget - remove all messages and responses from chatbot conversation"
-  );
-  logHelp("  log - show chat log");
-  logHelp("  clear - clear console");
-  logHelp("  save - save chat log to file");
-  logHelp("  load - load chat log from file");
-  logHelp("  help - show this help message");
+  const helpMessage = `Available commands:
+  connect - connect to the chat room with previously used handle, or anonymously if no handle was used
+  join \`<handle>\` - connect to the chat room with a handle, or change handle (enclose in backticks)
+  say \`<message>\` - send a message to the chat room (enclose in backticks)
+  bot \`<message>\` - send a message to the chatbot (enclose in backticks)
+  to \`<handle>\` - set recipient for private messages (enclose in backticks)
+  pm \`<message>\` - send a private message to the recipient (enclose in backticks)
+  users - list users in the chat room
+  logout - disconnect from the chat room
+  cancel - cancel pending request to chatbot
+  undo - remove last message and response from chatbot conversation (if any)
+  forget - remove all messages and responses from chatbot conversation
+  log - show chat log
+  clear - clear console
+  save - save chat log to file
+  load - load chat log from file
+  help - show this help message
+  `;
+  logHelp(helpMessage);
   return variableWidthDivider();
 };
 
