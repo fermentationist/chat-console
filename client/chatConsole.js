@@ -173,8 +173,8 @@ const save = () => {
 
 const load = () => {
   if (isFirefox) {
-    logWarning(
-      "WARNING: Firefox does not support loading chat logs. Please try a different browser."
+    logError(
+      "Firefox does not support loading chat logs. Please try a different browser."
     );
     return variableWidthDivider();
   }
@@ -282,8 +282,8 @@ bindCommandToGetter(logout, [
   ...getCases("exit"),
 ]);
 bindCommandToGetter(users, [...getCases("users"), ...getCases("who")]);
-bindCommandToGetter(showHelp, [...getCases("help"), "H", "h", "?"]);
-bindCommandToGetter(showChatLog, [...getCases("log"), ...getCases("history")]);
+bindCommandToGetter(showHelp, [...getCases("help"), "H", "h"]);
+bindCommandToGetter(showChatLog, [...getCases("log"), ...getCases("chatLog")]);
 bindCommandToGetter(save, [...getCases("save"), ...getCases("export")]);
 bindCommandToGetter(load, [
   ...getCases("load"),
@@ -292,7 +292,7 @@ bindCommandToGetter(load, [
 ]);
 bindCommandToGetter(clear, getCases("clear"));
 bindCommandToGetter(undo, [...getCases("unsay"), ...getCases("undo")]);
-bindCommandToGetter(cancel, [...getCases("cancel"), ...getCases("stop")]);
+bindCommandToGetter(cancel, getCases("cancel"));
 bindCommandToGetter(forget, getCases("forget"));
 
 // log title and help message
