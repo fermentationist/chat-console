@@ -113,7 +113,7 @@ class ChatBot {
       role: "system",
       content: `The following is a conversation between an AI assistant named ${
         this.name
-      } and a user, named ${userHandle}. ${this.getBotInstructions(origin)}`,
+      } and a user. The user's handle is ${userHandle}, and the assistant addresses the user by their handle. ${this.getBotInstructions(origin)}`,
     };
   }
 
@@ -167,6 +167,7 @@ class ChatBot {
       if (!this.conversations[origin]) {
         this.conversations[origin] = {};
       }
+      console.log("this.getSytemPrompt(origin, userHandle)", this.getSystemPrompt(origin, userHandle))
       const previousConversation = this.conversations[origin][userId] || [
         this.getSystemPrompt(origin, userHandle),
       ];
