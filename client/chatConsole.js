@@ -18,6 +18,7 @@ import {
 let chatLog = [];
 let nickname = localStorage.getItem("nickname") || null;
 let ws = null;
+let target = null;
 const scriptUrl = import.meta.url;
 const socketServerUrl = scriptUrl.replace("chatConsole.js", "");
 const [httpProtocol, host] = socketServerUrl.split("://");
@@ -59,7 +60,7 @@ const getNewSocketConnection = () => {
 
 const say = (messageOrArrayWithMessage) => {
   if (!ws || ws.readyState !== 1) {
-    logError(
+    logWarning(
       `Not connected. Please connect to the chat room first using the "connect" or "join" commands.`
     );
   } else {
@@ -68,6 +69,36 @@ const say = (messageOrArrayWithMessage) => {
       : messageOrArrayWithMessage;
     // using encodeURIComponent to allow for special characters
     ws.send(encodeURIComponent(message));
+  }
+  return variableWidthDivider();
+};
+
+const setTarget = (targetOrArrayWithTarget) => {
+  const newTarget = Array.isArray(targetOrArrayWithTarget)
+    ? targetOrArrayWithTarget[0]
+    : targetOrArrayWithTarget;
+  target = newTarget ?? null;
+  target && logInfo(`Private message recipient set to "${target}". Use the "pm" command to send a private message.`);
+  return variableWidthDivider();
+};
+
+const pm = (messageOrArrayWithMessage) => {
+  if (!ws || ws.readyState !== 1) {
+    logWarning(
+      `Not connected. Please connect to the chat room first using the "connect" or "join" commands.`
+    );
+  } else {
+    if (!target) {
+      logWarning(
+        `No recipient specified. Please specify a recipient using the "to" command.`
+      );
+      return variableWidthDivider();
+    }
+    const message = Array.isArray(messageOrArrayWithMessage)
+      ? messageOrArrayWithMessage[0]
+      : messageOrArrayWithMessage;
+    // using encodeURIComponent to allow for special characters
+    ws.send(encodeURIComponent(`/{${target}}/${message}`));
   }
   return variableWidthDivider();
 };
@@ -112,14 +143,16 @@ const showHelp = () => {
   logHelp(
     "  say `<message>` - send a message to the chat room (enclose in backticks)"
   );
+  logHelp("  to `<nickname>` - set recipient for private messages (enclose in backticks)");
+  logHelp("  pm `<message>` - send a private message to the recipient (enclose in backticks)");
   logHelp("  users - list users in the chat room");
   logHelp("  logout - disconnect from the chat room");
-  logHelp("  log - show chat log");
-  logHelp("  save - save chat log to file");
-  logHelp("  load - load chat log from file");
-  logHelp("  clear - clear console");
   logHelp("  cancel - cancel pending request to chatbot");
   logHelp("  unsay - remove last message and response from chatbot conversation (if any)");
+  logHelp("  log - show chat log");
+  logHelp("  clear - clear console");
+  logHelp("  save - save chat log to file");
+  logHelp("  load - load chat log from file");
   logHelp("  help - show this help message");
   return variableWidthDivider();
 };
@@ -186,6 +219,8 @@ bindFunctionToWindow(join, [
   ...getCases("login"),
   ...getCases("nick"),
 ]);
+bindFunctionToWindow(pm, [...getCases("pm"), ...getCases("dm"), ...getCases("whisper")]);
+bindFunctionToWindow(setTarget, [...getCases("target"), ...getCases("to")]);
 
 bindCommandToGetter(getNewSocketConnection, getCases("connect"));
 bindCommandToGetter(logout, [
@@ -206,4 +241,5 @@ bindCommandToGetter(cancel, [...getCases("cancel"), ...getCases("stop")]);
 // log title and help message
 logTitle("chat-console");
 logSubtitle("© 2023 Dennis Hodges");
-showHelp();
+logInfo("Type 'help' for a list of commands.");
+// showHelp();

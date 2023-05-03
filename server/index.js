@@ -2,6 +2,7 @@ import app from "./app.js";
 import http from "http";
 import wakeDyno from "woke-dyno";
 import chatRooms from "./ChatRooms.js";
+import opError, { ENUMERATED_ERRORS } from "./error.js";
 import { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT || 8080;
@@ -16,7 +17,9 @@ const SOCKET_PING_INTERVAL = 1000 * 60; // 1 minute
 const ACTIVATE_BOT = process.env.ACTIVATE_BOT === "true" ? true : false;
 let BOT_ENABLED_HOSTNAMES;
 try {
-  BOT_ENABLED_HOSTNAMES = process.env.BOT_ENABLED_HOSTNAMES && JSON.parse(process.env.BOT_ENABLED_HOSTNAMES);
+  BOT_ENABLED_HOSTNAMES =
+    process.env.BOT_ENABLED_HOSTNAMES &&
+    JSON.parse(process.env.BOT_ENABLED_HOSTNAMES);
   if (!Array.isArray(BOT_ENABLED_HOSTNAMES)) {
     throw new Error();
   }
@@ -38,6 +41,9 @@ const cLog = (message, logLevel) => {
   }
 };
 
+//==========================================================================
+// Websocket server
+//==========================================================================
 wss.on("connection", (ws, req) => {
   ws.isAlive = true;
   const { origin } = req.headers;
@@ -61,23 +67,176 @@ wss.on("connection", (ws, req) => {
         nickname ? ` with nickname ${nickname}` : ""
       }, assigned id ${userId}`
     );
-    // send message to all connections in room to notify of new connection
-    const joinMessageObj = {
-      user: "server",
-      message: `${name} joined`,
-      timestamp: Date.now(),
+
+    //==========================================================================
+    // MESSAGE HANDLING METHODS
+    //==========================================================================
+    const executeCommand = (command) => {
+      // COMMANDS
+      switch (command) {
+        case "users":
+          // send list of users in room
+          const userListMessageObj = getUserListMessageObj(botIsActive);
+          cLog(
+            `[${new Date().toISOString()}] sending userlist message to ${name} (${userId})`
+          );
+          return ws.send(JSON.stringify(userListMessageObj));
+        case "unsay":
+          if (!botIsActive) {
+            // send error message
+            const errorMessageObj = {
+              user: "server",
+              message: `"unsay" command only works when a chatbot is active`,
+              timestamp: Date.now(),
+            };
+            cLog(
+              `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
+            );
+            cLog(errorMessageObj.message, "verbose");
+            return ws.send(JSON.stringify(errorMessageObj));
+          }
+          // remove last message and response from bot conversation
+          const removed = chatRooms.chatbot.removeLastMessage(origin, userId);
+          const unsayResponseMessage = removed
+            ? `Somehow, you manage to unsay the last thing you said to ${chatRooms.chatbot.name}.`
+            : `You haven't said anything to ${chatRooms.chatbot.name} yet.`;
+          return ws.send(
+            JSON.stringify({
+              user: "server",
+              message: unsayResponseMessage,
+              timestamp: Date.now(),
+            })
+          );
+        case "cancel":
+          if (!botIsActive) {
+            // send error message
+            const errorMessageObj = {
+              user: "server",
+              message: `"cancel" command only works when a chatbot is active`,
+              timestamp: Date.now(),
+            };
+            cLog(
+              `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
+            );
+            cLog(errorMessageObj.message, "verbose");
+            return ws.send(JSON.stringify(errorMessageObj));
+          }
+          // cancel pending bot completion
+          const cancelled = chatRooms.chatbot.cancelPending(origin, userId);
+          const message = cancelled
+            ? `Your pending request to ${chatRooms.chatbot.name} has been cancelled.`
+            : `You don't have any pending requests to ${chatRooms.chatbot.name}.`;
+          return ws.send(
+            JSON.stringify({
+              user: "server",
+              message,
+              timestamp: Date.now(),
+            })
+          );
+        default:
+          // send error message
+          const errorMessageObj = {
+            user: "server",
+            message: `Command not recognized: ${command}`,
+            timestamp: Date.now(),
+          };
+          cLog(
+            `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
+          );
+          cLog(errorMessageObj.message, "verbose");
+          return ws.send(JSON.stringify(errorMessageObj));
+      }
     };
+
+    const sendPrivateMessage = (recipient, message) => {
+      cLog(
+        `[${new Date().toISOString()}] sending private message to ${recipient} from ${name} (${userId})`
+      );
+      cLog(message, "verbose");
+      // echoing message back to user
+      ws.send(
+        JSON.stringify({
+          user: `${name} (to ${recipient})`,
+          message,
+          timestamp: Date.now(),
+        })
+      );
+      chatRooms.sendPrivateMessage({
+        origin,
+        recipient,
+        sender: name,
+        message,
+      });
+    };
+
+    const chatWithBot = async (message) => {
+      cLog(
+        `[${new Date().toISOString()}] echoing message back to ${name} (${userId})`
+      );
+      // echoing message back to user
+      ws.send(
+        JSON.stringify({
+          user: `${name} (to ${chatRooms.chatbot.name})`,
+          message,
+          timestamp: Date.now(),
+        })
+      );
+
+      // get response from bot
+      const botResponse = await chatRooms.chatbot.converse(
+        message,
+        origin,
+        userId
+      );
+      // check for cancellation
+      if (botResponse === null) {
+        // request was cancelled, do nothing
+        return;
+      }
+      // send response from bot
+      const botResponseObj = {
+        user: `${chatRooms.chatbot.name} (bot)`,
+        message: botResponse,
+        timestamp: Date.now(),
+      };
+      cLog(
+        `[${new Date().toISOString()}] sending bot response to ${name} (${userId})`
+      );
+      cLog(botResponseObj.message, "verbose");
+      ws.send(JSON.stringify(botResponseObj));
+    };
+
+    const broadcast = (message, sender) => {
+      const userMessageObj = {
+        user: sender,
+        message,
+        timestamp: Date.now(),
+      };
+      cLog(
+        `[${new Date().toISOString()}] sending message to room from ${name} (${userId})`
+      );
+      cLog(userMessageObj.message, "verbose");
+      chatRooms.broadcast(origin, userMessageObj);
+    };
+    //==========================================================================
+    // END MESSAGE HANDLING METHODS
+    //==========================================================================
+
+    // send message to all connections in room to notify of new connection
+    const joinMessage = `${name} joined`;
+    broadcast(joinMessage, "server");
     cLog(
       `[${new Date().toISOString()}] sending join message about ${name} (${userId})`
     );
-    cLog(joinMessageObj.message, "verbose");
-    chatRooms.broadcast(origin, joinMessageObj);
+    cLog(joinMessage, "verbose");
 
     const hostname = origin
       .replace(/^(?:https?:\/\/)?(?:www\.)?/i, "")
       .split(/[\/:]/)[0];
     const botIsActive =
-      ACTIVATE_BOT && (BOT_ENABLED_HOSTNAMES.includes(hostname) || BOT_ENABLED_HOSTNAMES.includes("*"));
+      ACTIVATE_BOT &&
+      (BOT_ENABLED_HOSTNAMES.includes(hostname) ||
+        BOT_ENABLED_HOSTNAMES.includes("*"));
 
     // send list of users in room to new connection
     const userListMessageObj = getUserListMessageObj(botIsActive);
@@ -101,137 +260,71 @@ wss.on("connection", (ws, req) => {
       ws.send(JSON.stringify(botGreetingMessageObj));
     }
 
-    // add websocket event listeners
+    //==========================================================================
+    // WEBSOCKET EVENT LISTENERS
+    //==========================================================================
     ws.on("error", (error) => {
       console.error("error:", error);
     });
 
     ws.on("message", async (arrayBufData) => {
-      const message = String.fromCharCode.apply(
-        null,
-        new Uint16Array(arrayBufData)
-      );
-      const decodedMessage = decodeURIComponent(message);
-      // check if message is a command
-      if ((decodedMessage).startsWith("/")) {
-        const command = decodedMessage.slice(1);
-
-        // COMMANDS
-        switch (command) {
-          case "users":
-            // send list of users in room
-            const userListMessageObj = getUserListMessageObj(botIsActive);
-            cLog(
-              `[${new Date().toISOString()}] sending userlist message to ${name} (${userId})`
-            );
-            return ws.send(JSON.stringify(userListMessageObj));
-          case "unsay":
-            if (!botIsActive) {
-              // send error message
-              const errorMessageObj = {
-                user: "server",
-                message: `"unsay" command only works when a chatbot is active`,
-                timestamp: Date.now(),
-              };
-              cLog(
-                `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
-              );
-              cLog(errorMessageObj.message, "verbose");
-              return ws.send(JSON.stringify(errorMessageObj));
-            }
-            // remove last message and response from bot conversation
-            const removed = chatRooms.chatbot.removeLastMessage(origin, userId);
-            const unsayResponseMessage = removed ? `Somehow, you manage to unsay the last thing you said to ${chatRooms.chatbot.name}.` : `You haven't said anything to ${chatRooms.chatbot.name} yet.`;
-            return ws.send(JSON.stringify({
-              user: "server",
-              message: unsayResponseMessage,
-              timestamp: Date.now(),
-            }));
-          case "cancel":
-            if (!botIsActive) {
-              // send error message
-              const errorMessageObj = { 
-                user: "server",
-                message: `"cancel" command only works when a chatbot is active`,
-                timestamp: Date.now(),
-              };
-              cLog(
-                `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
-              );
-              cLog(errorMessageObj.message, "verbose");
-              return ws.send(JSON.stringify(errorMessageObj));
-            }
-            // cancel pending bot completion
-            const cancelled = chatRooms.chatbot.cancelPending(origin, userId);
-            const message = cancelled ? `Your pending request to ${chatRooms.chatbot.name} has been cancelled.` : `You don't have any pending requests to ${chatRooms.chatbot.name}.`;
-            return ws.send(JSON.stringify({
-              user: "server",
-              message,
-              timestamp: Date.now(),
-            }));
-          default:
-            // send error message
-            const errorMessageObj = {
-              user: "server",
-              message: `Command not recognized: ${command}`,
-              timestamp: Date.now(),
-            };
-            cLog(
-              `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
-            );
-            cLog(errorMessageObj.message, "verbose");
-            return ws.send(JSON.stringify(errorMessageObj));
-        }
-      }
-      cLog(
-        `[${new Date().toISOString()}] incoming message from ${name} (${userId})`
-      );
-      cLog(decodedMessage, "verbose");
-      // check if bot is active and message contains wakeword
-      if (
-        botIsActive &&
-        decodedMessage.toLowerCase().includes(chatRooms.chatbot.wakeword.toLowerCase())
-      ) {
-        cLog(
-          `[${new Date().toISOString()}] echoing message back to ${name} (${userId})`
-          );
-        // echoing message back to user
-        ws.send(JSON.stringify({ user: `${name} (to ${chatRooms.chatbot.name})`, message, timestamp: Date.now() }));
-
-        // get response from bot
-        const botResponse = await chatRooms.chatbot.converse(
-          decodedMessage,
-          origin,
-          userId
+      try {
+        const message = String.fromCharCode.apply(
+          null,
+          new Uint16Array(arrayBufData)
         );
-        // check for cancellation
-        if (botResponse === null) {
-          // request was cancelled, do nothing
-          return;
-        }
-        // send response from bot
-        const botResponseObj = {
-          user: `${chatRooms.chatbot.name} (bot)`,
-          message: botResponse,
-          timestamp: Date.now(),
-        };
+        const decodedMessage = decodeURIComponent(message);
         cLog(
-          `[${new Date().toISOString()}] sending bot response to ${name} (${userId})`
+          `[${new Date().toISOString()}] incoming message from ${name} (${userId})`
         );
-        cLog(botResponseObj.message, "verbose");
-        ws.send(JSON.stringify(botResponseObj));
-      } else {
-        // send message to all connections in room
-        const userMessageObj = {
-          user: name,
+        cLog(decodedMessage, "verbose");
+  
+        // check if message is a command or private message
+        if (decodedMessage.startsWith("/")) {
+          const commandMessage = decodedMessage.slice(1);
+          const [command, ...remainingMessageArr] = commandMessage.split("/");
+          // check if command is private message recipient
+          if (command.startsWith("{") && command.endsWith("}")) {
+            const remainingMessage = remainingMessageArr.join("/");
+            const recipient = command.slice(1, -1);
+            // check if recipient is chatbot
+            if (
+              recipient.toLowerCase() === chatRooms.chatbot.name.toLowerCase()
+            ) {
+              if (!botIsActive) {
+                throw opError("invalid_command", "Chatbot is not active");
+              }
+              // send message to chatbot
+              chatWithBot(remainingMessage);
+            } else {
+              // send private message to recipient
+              sendPrivateMessage(recipient, remainingMessage);
+            }
+          } else {
+            // execute command
+            executeCommand(command);
+          }
+        } else if (
+          // check if bot is active and message contains wakeword
+          botIsActive &&
+          decodedMessage
+            .toLowerCase()
+            .includes(chatRooms.chatbot.wakeword.toLowerCase())
+        ) {
+          // send message to chatbot
+          chatWithBot(decodedMessage);
+        } else {
+          // send message to all connections in room
+          broadcast(decodedMessage, name);
+        }
+      } catch (error) {
+        console.error("Error handling message:", error);
+        const message = ENUMERATED_ERRORS.includes(error.name) ? error.message : "An error occurred";
+        ws.send(JSON.stringify({
+          user: "server",
           message,
           timestamp: Date.now(),
-        };
-        cLog(
-          `[${new Date().toISOString()}] sending message to room from ${name} (${userId})`
-        );
-        cLog(userMessageObj.message, "verbose");
-        chatRooms.broadcast(origin, userMessageObj);
+        }))
       }
     });
 
@@ -243,14 +336,7 @@ wss.on("connection", (ws, req) => {
       cLog(
         `[${new Date().toISOString()}] sending leave message to room for ${name} (${userId})`
       );
-      chatRooms.broadcast(
-        origin,
-        JSON.stringify({
-          user: "server",
-          message: `${name} left`,
-          timestamp: Date.now(),
-        })
-      );
+      broadcast(`${name} left`, "server");
     });
 
     ws.on("pong", () => {
@@ -261,7 +347,9 @@ wss.on("connection", (ws, req) => {
     });
   } catch (error) {
     console.error("Websocket connection error:", error);
-    const message = error.name === "invalid_nickname" ? error.message : "A server error occurred";
+    const message = ENUMERATED_ERRORS.includes(error.name)
+      ? error.message
+      : "A server error occurred";
     ws.send(
       JSON.stringify({
         user: "server",
@@ -301,20 +389,22 @@ httpServer.listen(PORT, () => {
       let [hh, mm] = time.split(":");
       hh = parseInt(hh);
       mm = parseInt(mm);
-      if ((hh >= 0 && hh <= 23) && (mm >= 0 && mm <= 59)) {
+      if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
         return [hh, mm];
-      } 
+      }
       return false;
-    }
+    };
     const wokeDynoConfig = {
       url: WAKE_SERVER_URL,
-      interval: WAKE_SERVER_INTERVAL, 
-    }
+      interval: WAKE_SERVER_INTERVAL,
+    };
     const startNap = parseTimeString(WAKE_SERVER_NAP_START);
     const endNap = parseTimeString(WAKE_SERVER_NAP_END);
-    if (startNap && endNap) { // if nap times are set
+    if (startNap && endNap) {
+      // if nap times are set
       const offset = 4; // NY
-      const getOffsetHours = (hours) => (hours + offset) > 24 ? Math.abs(24 - (hours + offset)) : hours + offset;
+      const getOffsetHours = (hours) =>
+        hours + offset > 24 ? Math.abs(24 - (hours + offset)) : hours + offset;
       const [hhStart, mmStart] = startNap;
       const [hhEnd, mmEnd] = endNap;
       const napStartHour = getOffsetHours(hhStart);

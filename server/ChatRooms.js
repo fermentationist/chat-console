@@ -5,7 +5,7 @@ import opError from "./error.js";
 class ChatRooms {
   BOT_NAME = process.env.BOT_NAME ?? "ChatBot";
   BOT_WAKEWORD = process.env.BOT_WAKEWORD ?? this.BOT_NAME;
-  RESERVED_NAMES = ["server", "bot", this.BOT_NAME, this.BOT_WAKEWORD];
+  RESERVED_NAMES = ["chatbot", "server", "bot", this.BOT_NAME, this.BOT_WAKEWORD];
 
   constructor() {
     this.connections = {};
@@ -47,14 +47,23 @@ class ChatRooms {
     );
   }
 
-  send(origin, userId, data) {
+  sendPrivateMessage({ origin, recipient, sender, message }) {
     const connection = this.connections[origin].find(
-      (connection) => connection.id === userId
+      (connection) => connection.name === recipient
     );
     if (!connection) {
-      throw opError("invalid_recipient", `connection ${userId} not found`);
+      throw opError(
+        "invalid_recipient",
+        `connection for user ${recipient} not found`
+      );
     }
-    connection.connection.send(data);
+    connection.connection.send(
+      JSON.stringify({
+        user: `${sender} (private)`,
+        message,
+        timestamp: Date.now(),
+      })
+    );
   }
 
   broadcast(origin, data) {
