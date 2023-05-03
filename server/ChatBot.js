@@ -1,8 +1,9 @@
 import "dotenv/config";
 import { Configuration, OpenAIApi } from "openai";
+import opError from "./error.js";
 
 const BOT_INSTRUCTIONS = process.env.BOT_INSTRUCTIONS;
-const TOKEN_LIMIT = Math.floor(Math.round(4097 * 0.75));
+const TOKEN_LIMIT = Math.floor(Math.round(4097 * 0.85));
 
 class ChatBotRequest {
   cancelled = false;
@@ -14,14 +15,13 @@ class ChatBotRequest {
     this.openai = openai;
     this.model = model ?? "gpt-3.5-turbo-0301";
     this.TOKEN_LIMIT = tokenLimit ?? TOKEN_LIMIT;
-    const estimate = ChatBotRequest.tokenEstimate(this.messages);
     // trim the messages array to the token limit
-    console.log("Estimated prompt tokens:", estimate);
-    while (estimate > this.TOKEN_LIMIT) {
+    while (ChatBotRequest.tokenEstimate(this.messages) > this.TOKEN_LIMIT) {
       // Remove the second and third messages from the array, which are the oldest user message and the oldest bot response
       if (this.messages.length < 3) {
-        break;
+        throw opError("invalid_message", "message too long");
       }
+      console.log("Removing earlier messages to fit token limit...")
       this.messages.splice(1, 2);
     }
   }
@@ -167,7 +167,6 @@ class ChatBot {
       if (!this.conversations[origin]) {
         this.conversations[origin] = {};
       }
-      console.log("this.getSytemPrompt(origin, userHandle)", this.getSystemPrompt(origin, userHandle))
       const previousConversation = this.conversations[origin][userId] || [
         this.getSystemPrompt(origin, userHandle),
       ];
@@ -198,7 +197,7 @@ class ChatBot {
     } catch (error) {
       console.log("Error in ChatBot.converse():");
       console.error(error);
-      return `Sorry, I'm having trouble understanding you. Please try again.`;
+      return error?.name === "invalid_message" ? `Error: ${error.message}` : `Sorry, I'm having trouble understanding you. Please try again.`;
     } finally {
       this.removeFromPendingRequests(origin, userId, request);
     }
