@@ -26,6 +26,9 @@ try {
 } catch (err) {
   BOT_ENABLED_HOSTNAMES = [];
 }
+// whether `say` commands that use the bot's wakeword should be sent to public chatbot (and chatroom) as opposed to the private chatbot
+const PUBLIC_CHATBOT_ENABLED =
+  process.env.PUBLIC_CHATBOT_ENABLED === "true" ? true : false;
 const VERBOSE_LOGS = process.env.VERBOSE_LOGS === "true" ? true : false;
 
 const httpServer = http.createServer(app);
@@ -46,20 +49,18 @@ const cLog = (message, logLevel) => {
 //==========================================================================
 wss.on("connection", (ws, req) => {
   ws.isAlive = true;
+  let lastBotInteractionWasPublic = false;
   const { origin } = req.headers;
-  const heartbeat = () => (ws.isAlive = true);
-  const getUserListMessageObj = (botIsActive) => ({
-    user: "server",
-    message: `Users in room: ${chatRooms.getHandles(origin).join(", ")}${
-      botIsActive ? `, ${chatRooms.chatbot.name} (bot)` : ""
-    }`,
-    timestamp: Date.now(),
-  });
-
+  const hostname = origin
+    .replace(/^(?:https?:\/\/)?(?:www\.)?/i, "")
+    .split(/[\/:]/)[0];
+  const botIsActive =
+    ACTIVATE_BOT &&
+    (BOT_ENABLED_HOSTNAMES.includes(hostname) ||
+      BOT_ENABLED_HOSTNAMES.includes("*"));
   try {
     const [_, encodedHandle] = req.url.split("?handle=");
-    const handle =
-      encodedHandle && decodeURIComponent(encodedHandle).trim();
+    const handle = encodedHandle && decodeURIComponent(encodedHandle).trim();
     const userId = chatRooms.addConnection(origin, ws, handle);
     const name = handle ?? userId;
     cLog(
@@ -69,19 +70,30 @@ wss.on("connection", (ws, req) => {
     );
 
     //==========================================================================
-    // MESSAGE HANDLING METHODS
+    // MESSAGE HANDLING AND HELPER METHODS
     //==========================================================================
-    const sendBotInactiveError = (command) => {
-      const errorMessageObj = {
-        user: "server",
-        message: `"${command}" command only works when a chatbot is active`,
+    const heartbeat = () => (ws.isAlive = true);
+    const getUserListMessage = () => {
+      return `Users in room: ${chatRooms.getHandles(origin).join(", ")}${
+        botIsActive ? `, ${chatRooms.chatbot.name} (bot)` : ""
+      }`;
+    };
+    const sendMessageToUser = (message, senderHandle) => {
+      const userMessageObj = {
+        user: senderHandle,
+        message,
         timestamp: Date.now(),
       };
       cLog(
-        `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
+        `[${new Date().toISOString()}] sending message to ${name} (${userId}) from ${senderHandle}`
       );
-      cLog(errorMessageObj.message, "verbose");
-      return ws.send(JSON.stringify(errorMessageObj));
+      cLog(message, "verbose");
+      ws.send(JSON.stringify(userMessageObj));
+    };
+
+    const sendBotInactiveError = (command) => {
+      const message = `"${command}" command only works when a chatbot is active`;
+      sendMessageToUser(message, "server");
     };
 
     const executeCommand = (command) => {
@@ -89,28 +101,18 @@ wss.on("connection", (ws, req) => {
       switch (command) {
         case "users":
           // send list of users in room
-          const userListMessageObj = getUserListMessageObj(botIsActive);
-          cLog(
-            `[${new Date().toISOString()}] sending userlist message to ${name} (${userId})`
-          );
-          return ws.send(JSON.stringify(userListMessageObj));
+          return sendMessageToUser(getUserListMessage(), "server");
         case "undo":
           if (!botIsActive) {
             // send error message
             return sendBotInactiveError("undo");
           }
           // remove last message and response from bot conversation
-          const removed = chatRooms.chatbot.removeLastMessage(origin, userId);
-          const unsayResponseMessage = removed
-            ? `Somehow, you manage to unsay the last thing you said to ${chatRooms.chatbot.name}.`
-            : `You haven't said anything to ${chatRooms.chatbot.name} yet.`;
-          return ws.send(
-            JSON.stringify({
-              user: "server",
-              message: unsayResponseMessage,
-              timestamp: Date.now(),
-            })
-          );
+          const typeRemoved = chatRooms.chatbot.removeLastMessage(origin, userId, lastBotInteractionWasPublic, name);
+          const unsayResponseMessage = typeRemoved
+            ? `Somehow, you manage to unsay the last thing you said to ${chatRooms.chatbot.name} in ${typeRemoved}.`
+            : `You haven't said anything to ${chatRooms.chatbot.name} in ${lastBotInteractionWasPublic ? "public" : "private"} yet.`;
+          return sendMessageToUser(unsayResponseMessage, "server");
         case "cancel":
           if (!botIsActive) {
             // send error message
@@ -118,16 +120,10 @@ wss.on("connection", (ws, req) => {
           }
           // cancel pending bot completion
           const cancelled = chatRooms.chatbot.cancelPending(origin, userId);
-          const message = cancelled
+          const cancelMessage = cancelled
             ? `Your pending request to ${chatRooms.chatbot.name} has been cancelled.`
             : `You don't have any pending requests to ${chatRooms.chatbot.name}.`;
-          return ws.send(
-            JSON.stringify({
-              user: "server",
-              message,
-              timestamp: Date.now(),
-            })
-          );
+          return sendMessageToUser(cancelMessage, "server");
         case "forget":
           if (!botIsActive) {
             // send error message
@@ -136,28 +132,12 @@ wss.on("connection", (ws, req) => {
           // forget all messages and responses from bot conversation
           const forgotten = chatRooms.chatbot.forget(origin, userId);
           const forgetResponseMessage = forgotten
-            ? `${chatRooms.chatbot.name} forgets everything you've ever said to them.`
+            ? `${chatRooms.chatbot.name} forgets the conversation.`
             : `You haven't said anything to ${chatRooms.chatbot.name} yet.`;
-          return ws.send(
-            JSON.stringify({
-              user: "server",
-              message: forgetResponseMessage,
-              timestamp: Date.now(),
-            })
-          );
-
+          return sendMessageToUser(forgetResponseMessage, "server");
         default:
           // send error message
-          const errorMessageObj = {
-            user: "server",
-            message: `Command not recognized: ${command}`,
-            timestamp: Date.now(),
-          };
-          cLog(
-            `[${new Date().toISOString()}] sending error message to ${name} (${userId})`
-          );
-          cLog(errorMessageObj.message, "verbose");
-          return ws.send(JSON.stringify(errorMessageObj));
+          return sendMessageToUser(`Command not recognized: ${command}`, "server");
       }
     };
 
@@ -182,47 +162,9 @@ wss.on("connection", (ws, req) => {
       });
     };
 
-    const chatWithBot = async (message) => {
-      cLog(
-        `[${new Date().toISOString()}] echoing message back to ${name} (${userId})`
-      );
-      // echoing message back to user
-      ws.send(
-        JSON.stringify({
-          user: `${name} (to ${chatRooms.chatbot.name})`,
-          message,
-          timestamp: Date.now(),
-        })
-      );
-
-      // get response from bot
-      const botResponse = await chatRooms.chatbot.converse(
-        message,
-        origin,
-        userId,
-        name
-      );
-      // check for cancellation
-      if (botResponse === null) {
-        // request was cancelled, do nothing
-        return;
-      }
-      // send response from bot
-      const botResponseObj = {
-        user: `${chatRooms.chatbot.name} (bot)`,
-        message: botResponse,
-        timestamp: Date.now(),
-      };
-      cLog(
-        `[${new Date().toISOString()}] sending bot response to ${name} (${userId})`
-      );
-      cLog(botResponseObj.message, "verbose");
-      ws.send(JSON.stringify(botResponseObj));
-    };
-
-    const broadcast = (message, sender) => {
+    const broadcast = (message, senderHandle) => {
       const userMessageObj = {
-        user: sender,
+        user: senderHandle,
         message,
         timestamp: Date.now(),
       };
@@ -232,6 +174,40 @@ wss.on("connection", (ws, req) => {
       cLog(userMessageObj.message, "verbose");
       chatRooms.broadcast(origin, userMessageObj);
     };
+
+    const chatWithBot = async (message, isPublic = false) => {
+      if (isPublic) {
+        // send message to chat room
+        broadcast(message, name);
+      } else {
+        // echo message back to user
+        sendMessageToUser(message, `${name} (to ${chatRooms.chatbot.name})`);
+      }
+      // get response from bot
+      const botResponse = await chatRooms.chatbot.converse({
+        message,
+        origin,
+        userId,
+        userHandle: name,
+        isPublic,
+      });
+      // check for cancellation
+      if (botResponse === null) {
+        // request was cancelled, do nothing
+        return;
+      }
+      // send response from bot
+      if (isPublic) {
+        // send bot response to chat room
+        lastBotInteractionWasPublic = true;
+        broadcast(botResponse, `${chatRooms.chatbot.name} [bot]`);
+      } else {
+        // send bot response to user
+        lastBotInteractionWasPublic = false;
+        sendMessageToUser(botResponse, `${chatRooms.chatbot.name} [bot] (private)`);
+      }
+    };
+
     //==========================================================================
     // END MESSAGE HANDLING METHODS
     //==========================================================================
@@ -244,34 +220,12 @@ wss.on("connection", (ws, req) => {
     );
     cLog(joinMessage, "verbose");
 
-    const hostname = origin
-      .replace(/^(?:https?:\/\/)?(?:www\.)?/i, "")
-      .split(/[\/:]/)[0];
-    const botIsActive =
-      ACTIVATE_BOT &&
-      (BOT_ENABLED_HOSTNAMES.includes(hostname) ||
-        BOT_ENABLED_HOSTNAMES.includes("*"));
-
     // send list of users in room to new connection
-    const userListMessageObj = getUserListMessageObj(botIsActive);
-    cLog(
-      `[${new Date().toISOString()}] sending userlist message to ${name} (${userId})`
-    );
-    cLog(userListMessageObj.message, "verbose");
-    ws.send(JSON.stringify(userListMessageObj));
+    sendMessageToUser(getUserListMessage(), "server");
 
     if (botIsActive) {
       // send greeting from chatbot
-      const botGreetingMessageObj = {
-        user: `${chatRooms.chatbot.name} (bot)`,
-        message: chatRooms.chatbot.greeting,
-        timestamp: Date.now(),
-      };
-      cLog(
-        `[${new Date().toISOString()}] sending bot greeting message to ${name} (${userId})`
-      );
-      cLog(botGreetingMessageObj.message, "verbose");
-      ws.send(JSON.stringify(botGreetingMessageObj));
+      sendMessageToUser(chatRooms.chatbot.greeting, `${chatRooms.chatbot.name} (bot)`);
     }
 
     //==========================================================================
@@ -306,8 +260,8 @@ wss.on("connection", (ws, req) => {
               if (!botIsActive) {
                 throw opError("invalid_command", "Chatbot is not active");
               }
-              // send message to chatbot
-              chatWithBot(remainingMessage);
+              // send message to private chatbot
+              chatWithBot(remainingMessage, false);
             } else {
               // send private message to recipient
               sendPrivateMessage(recipient, remainingMessage);
@@ -319,12 +273,13 @@ wss.on("connection", (ws, req) => {
         } else if (
           // check if bot is active and message contains wakeword
           botIsActive &&
+          PUBLIC_CHATBOT_ENABLED &&
           decodedMessage
             .toLowerCase()
             .includes(chatRooms.chatbot.wakeword.toLowerCase())
         ) {
-          // send message to chatbot
-          chatWithBot(decodedMessage);
+          // send message to public chatbot
+          chatWithBot(decodedMessage, true);
         } else {
           // send message to all connections in room
           broadcast(decodedMessage, name);

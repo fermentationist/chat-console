@@ -3,14 +3,15 @@ import { Configuration, OpenAIApi } from "openai";
 import opError from "./error.js";
 
 const BOT_INSTRUCTIONS = process.env.BOT_INSTRUCTIONS;
-const TOKEN_LIMIT = Math.floor(Math.round(4097 * 0.85));
+// 85% of the max token limit, to leave room for the bot's response
+const TOKEN_LIMIT = Math.floor(Math.round(4096 * 0.85));
+// used as key in ChatBot.messages[origin], to store messages for the public chatbot (the one that responds to everyone in the room)
+const PUBLIC_CHATROOM_ID = "chatroom";
 
 class ChatBotRequest {
   cancelled = false;
   pending = true;
-  constructor({ origin, userId, messages, openai, tokenLimit, model }) {
-    this.origin = origin;
-    this.userId = userId;
+  constructor({ messages, openai, tokenLimit, model }) {
     this.messages = messages;
     this.openai = openai;
     this.model = model ?? "gpt-3.5-turbo-0301";
@@ -21,7 +22,7 @@ class ChatBotRequest {
       if (this.messages.length < 3) {
         throw opError("invalid_message", "message too long");
       }
-      console.log("Removing earlier messages to fit token limit...")
+      console.log("Removing earlier messages to fit token limit...");
       this.messages.splice(1, 2);
     }
   }
@@ -92,7 +93,6 @@ class ChatBot {
     // "violence",
     // "violence/graphic",
   ];
-  // TOKEN_LIMIT = Math.round(4097 * 0.75);
   temperature = 0.95;
   model = "gpt-3.5-turbo-0301";
   cancelled = false;
@@ -105,15 +105,21 @@ class ChatBot {
     this.openai = new OpenAIApi(this.configuration);
     this.name = name;
     this.wakeword = wakeword;
-    this.greeting = `Hello, my name is ${this.name} and I am a chatbot. \nTo speak to me, type a message that contains my wake-word, "${this.wakeword}". I will respond to you as soon as I can. To continue our conversation, each message you send must contain the wake-word. \nOur conversation is private; messages containing the wake-word will not be broadcast to other users, nor will my responses to you. \n(WARNING: All messages that do NOT contain the wake-word WILL be broadcast to all other users. I will NOT respond to messages that do not contain the wake-word.)`;
+    this.greeting = `Welcome, my name is ${this.name} and I am a chatbot. \nTo speak to me in the public chat room, send a public message that contains my wake-word, "${this.wakeword}". I will respond to you in the public chat as soon as I can. To continue our public conversation, each message you send must contain the wake-word. \nAlternately, you may speak to me in private and I will maintain a history of our conversation that is separate from the public conversation. If you send me a private message, only you will be able to see my response.`;
   }
 
-  getSystemPrompt(origin, userHandle) {
+  getSystemPrompt(origin, userHandle, isPublic) {
     return {
       role: "system",
       content: `The following is a conversation between an AI assistant named ${
         this.name
-      } and a user. The user's handle is ${userHandle}, and the assistant addresses the user by their handle. ${this.getBotInstructions(origin)}`,
+      } and ${
+        isPublic
+          ? `the participants of a chat room. The user who is speaking is listed in parentheses`
+          : `a user. The user's handle is ${userHandle}`
+      }, and the assistant addresses the user by their handle. ${this.getBotInstructions(
+        origin
+      )}`,
     };
   }
 
@@ -154,7 +160,14 @@ class ChatBot {
     return pendingRequests.some((request) => !request.cancelled);
   }
 
-  async converse(userInput, origin, userId, userHandle) {
+  async converse({
+    message: userInput,
+    origin,
+    userId,
+    userHandle,
+    isPublic = false,
+  }) {
+    const userOrPublicId = isPublic ? PUBLIC_CHATROOM_ID : userId;
     if (this.userHasPendingUncancelledRequest(origin, userId)) {
       return `Please wait while I finish responding to your previous message. If you don't want to wait, type "cancel" to cancel your previous message.`;
     }
@@ -167,18 +180,18 @@ class ChatBot {
       if (!this.conversations[origin]) {
         this.conversations[origin] = {};
       }
-      const previousConversation = this.conversations[origin][userId] || [
-        this.getSystemPrompt(origin, userHandle),
-      ];
+      const systemPrompt = this.getSystemPrompt(origin, userHandle, isPublic);
+      const previousConversation = this.conversations[origin][
+        userOrPublicId
+      ] || [systemPrompt];
       const newMessage = {
         role: "user",
-        content: userInput,
+        content: isPublic ? `(${userHandle}) ${userInput}` : userInput,
       };
       const messages = [...previousConversation, newMessage];
       request = new ChatBotRequest({
         messages,
         origin,
-        userId,
         openai: this.openai,
       });
       this.addToPendingRequests(origin, userId, request);
@@ -191,13 +204,15 @@ class ChatBot {
           role: "assistant",
           content: completion.data,
         });
-        this.conversations[origin][userId] = messages;
+        this.conversations[origin][userOrPublicId] = messages;
       }
       return completion.data;
     } catch (error) {
       console.log("Error in ChatBot.converse():");
       console.error(error);
-      return error?.name === "invalid_message" ? `Error: ${error.message}` : `Sorry, I'm having trouble understanding you. Please try again.`;
+      return error?.name === "invalid_message"
+        ? `Error: ${error.message}`
+        : `Sorry, I'm having trouble understanding you. Please try again.`;
     } finally {
       this.removeFromPendingRequests(origin, userId, request);
     }
@@ -233,16 +248,28 @@ class ChatBot {
     return false;
   }
 
-  removeLastMessage(origin, userId) {
-    const messages = this.conversations[origin]?.[userId];
+  removeLastMessage(origin, userId, isPublic, userHandle) {
+    let chatbotType = "private";
+    if (isPublic) {
+      const lastMessage = this.conversations[origin]?.[PUBLIC_CHATROOM_ID]?.slice(-2, -1)?.[0];
+      
+      const lastMessageSender = lastMessage?.content?.split(")")?.[0]?.replace("(", "");
+      console.log(`Last message sender: ${lastMessageSender}`)
+      if (lastMessageSender === userHandle) {
+        // If the last public chatbot message was sent by the user, remove the last message from the public chatbot's message history, otherwise remove the last message from the user's private chatroom
+        chatbotType = "public";
+      }
+    }
+    const messages = this.conversations[origin]?.[chatbotType === "public" ? PUBLIC_CHATROOM_ID : userId];
     if (!messages || messages.length < 2) {
       return false;
     }
+    console.log(`Removing last message from user's ${chatbotType} chatbot message history`);
     messages.splice(-2, 2);
-    return messages;
+    return chatbotType;
   }
 
-  forget (origin, userId) {
+  forget(origin, userId) {
     const messages = this.conversations[origin]?.[userId];
     if (!messages) {
       return false;
@@ -251,7 +278,6 @@ class ChatBot {
     this.conversations[origin][userId] = clearedMessages;
     return clearedMessages;
   }
-
 }
 
 export default ChatBot;
