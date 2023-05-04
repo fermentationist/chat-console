@@ -14,7 +14,7 @@ const WAKE_SERVER_INTERVAL =
 const WAKE_SERVER_NAP_START = process.env.WAKE_SERVER_NAP_START;
 const WAKE_SERVER_NAP_END = process.env.WAKE_SERVER_NAP_END;
 const SOCKET_PING_INTERVAL = 1000 * 60; // 1 minute
-const ACTIVATE_BOT = process.env.ACTIVATE_BOT === "true" ? true : false;
+const CHATBOT_ENABLED = process.env.CHATBOT_ENABLED === "true" ? true : false;
 let BOT_ENABLED_HOSTNAMES;
 try {
   BOT_ENABLED_HOSTNAMES =
@@ -55,7 +55,7 @@ wss.on("connection", (ws, req) => {
     .replace(/^(?:https?:\/\/)?(?:www\.)?/i, "")
     .split(/[\/:]/)[0];
   const botIsActive =
-    ACTIVATE_BOT &&
+    CHATBOT_ENABLED &&
     (BOT_ENABLED_HOSTNAMES.includes(hostname) ||
       BOT_ENABLED_HOSTNAMES.includes("*"));
   try {
@@ -132,8 +132,8 @@ wss.on("connection", (ws, req) => {
           // forget all messages and responses from bot conversation
           const forgotten = chatRooms.chatbot.forget(origin, userId);
           const forgetResponseMessage = forgotten
-            ? `${chatRooms.chatbot.name} forgets the conversation.`
-            : `You haven't said anything to ${chatRooms.chatbot.name} yet.`;
+            ? `${chatRooms.chatbot.name} forgets your private conversation.`
+            : `You haven't said anything privately to ${chatRooms.chatbot.name} yet.`;
           return sendMessageToUser(forgetResponseMessage, "server");
         default:
           // send error message

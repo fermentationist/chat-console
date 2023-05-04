@@ -255,12 +255,11 @@ class ChatBot {
       const lastMessage = this.conversations[origin]?.[PUBLIC_CHATROOM_ID]?.slice(-2, -1)?.[0];
       
       const lastMessageSender = lastMessage?.content?.split(")")?.[0]?.replace("(", "");
-      console.log(`Last message sender: ${lastMessageSender}`)
       if (lastMessageSender === userHandle) {
-        // If the last public chatbot message was sent by the user, remove the last message from the public chatbot's message history, otherwise remove the last message from the user's private chatroom
         chatbotType = "public";
       }
     }
+    // If the last public chatbot message was sent by the user, remove the last message from the public chatbot's message history, otherwise remove the last message from the user's private chatroom
     const messages = this.conversations[origin]?.[chatbotType === "public" ? PUBLIC_CHATROOM_ID : userId];
     if (!messages || messages.length < 2) {
       return false;
