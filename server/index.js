@@ -111,7 +111,7 @@ wss.on("connection", (ws, req) => {
           const typeRemoved = chatRooms.chatbot.removeLastMessage(origin, userId, lastBotInteractionWasPublic, name);
           const unsayResponseMessage = typeRemoved
             ? `Somehow, you manage to unsay the last thing you said to ${chatRooms.chatbot.name} in ${typeRemoved}.`
-            : `You haven't said anything to ${chatRooms.chatbot.name} in ${lastBotInteractionWasPublic ? "public" : "private"} yet.`;
+            : `${lastBotInteractionWasPublic ? `You can't undo the last public message to ${chatRooms.chatbot.name} because it did not come from you.` :`You haven't said anything privately to ${chatRooms.chatbot.name} yet.`}`;
           return sendMessageToUser(unsayResponseMessage, "server");
         case "cancel":
           if (!botIsActive) {
