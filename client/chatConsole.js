@@ -254,7 +254,7 @@ const showHelp = () => {
   connect - connect to the chat room with previously used handle, or anonymously if no handle was used
   join \`<handle>\` - connect to the chat room with a handle, or change handle (enclose in backticks)
   say \`<message>\` - send a message to the chat room (enclose in backticks)
-  bot \`<message>\` - send a message to the chatbot (enclose in backticks)
+  bot \`<message>\` - send a private message to the chatbot (enclose in backticks)
   to \`<handle>\` - set recipient for private messages (enclose in backticks)
   pm \`<message>\` - send a private message to the recipient (enclose in backticks)
   users - list users in the chat room

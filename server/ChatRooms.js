@@ -6,7 +6,7 @@ class ChatRooms {
   BOT_NAME = process.env.BOT_NAME ?? "ChatBot";
   BOT_WAKEWORD = process.env.BOT_WAKEWORD ?? this.BOT_NAME;
   BOT_ALIASES = ["chatbot", "bot", this.BOT_NAME, this.BOT_WAKEWORD];
-  RESERVED_NAMES = ["server", ...this.BOT_ALIASES];
+  RESERVED_NAMES = ["server", "chatroom", "room", "all", ...this.BOT_ALIASES];
 
   constructor() {
     this.connections = {};

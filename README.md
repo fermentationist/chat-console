@@ -16,7 +16,7 @@ To use the chat client, you must first open the browser's JavaScript console. Th
 - **connect** - Connect to the chat room with the previously used handle, or anonymously if no handle was used
 - **join \`**\<handle>**\`** - Connect to the chat room with a handle. Enclose the handle in **backticks**. (be sure to use *backticks*, not apostrophes!)
 - **say \`**\<message>**\`** - Send a message to the chat room. Enclose the message in **backticks**.
-- **bot \`**\<message>**\`** - Send a message to the chatbot. Enclose the message in **backticks**. The chatbot will respond with a message of its own.
+- **bot \`**\<message>**\`** - Send a private message to the chatbot. Enclose the message in **backticks**. The chatbot will respond with a message of its own.
 - **to \`**\<handle>**\`** - Set the recipient for private messages. Enclose the handle in **backticks**.
 - **pm \`**\<message>**\`** - Send a private message to the previously specified (using "to") recipient. Enclose the message in **backticks**.
 - **users** - List current users present in the chat room.
@@ -59,10 +59,13 @@ The chat server is configured to create a separate chat room for each hostname t
 7. **Set chatbot instructions** - `BOT_INSTRUCTIONS="your instructions"` (optional) If provided, will be used as the chatbot's system prompt to define its behavior. Refer to the AI as "the assistant" when formulating instructions. (e.g. "The assistant is a chatbot that answers questions about the weather.")
 
 #### Interacting with the Chatbot
-  There are several ways to exchange messages with the chatbot. 
-  * The simplest way is to use the `bot` command in the client console, followed by the message, enclosed in backticks. (e.g. ````bot `Hello, what is the weather like today?` ````) 
-  * The chatbot will also respond to any message sent with the `say` command, that contains its wake-word (the chatbot's name). For example, if the chatbot's name is "ChatBot", you can send it a message by typing ````say `ChatBot, what is the weather like today?` ```` in the client console. Unlike other messages sent with `say`, messages sent to the chatbot in this way will not be sent to other users in the chat room.
-  * Finally, you can also send a message to the chatbot by using the `pm` command in the client console. Simply set the recipient to the chatbot's name using the `to` command, and then send a message with `pm`. (e.g. ````to `ChatBot` ```` followed by ````pm `What is the weather like today?` ````)
+  There are a few different ways to exchange messages with the chatbot. 
+  1. **Public chatbot**
+      * The chatbot will respond to any public message sent to the chat room (with the `say` command), that contains its wake-word (the chatbot's name). For example, if the chatbot's name is "ChatBot", you can send it a message by typing ````say `ChatBot, what is the weather like today?` ```` in the client console. Messages sent to the chatbot in this way will be visible to all users in the chat room, as will the chatbot's response.
+      * The chatbot will store all messages sent to it publicly in the same conversation history, regardless of sender.
+  2. **Private chatbot**
+      * If you send a private message to the chatbot, using either the `bot` or `pm` commands, the chatbot will respond privately to you. 
+      * The chatbot will store all messages sent to it privately in a separate conversation history for each user.
 
 ### Keeping the Server Awake
 If you are using a free service to host your server that spins down and sleeps when not used for a while, you can use the `WAKE_SERVER_URL` and `WAKE_SERVER_INTERVAL` environment variables to keep the server awake. The server will make a fetch call to the URL every `WAKE_SERVER_INTERVAL` milliseconds. 
@@ -74,16 +77,17 @@ Since free hosting services may limit the number of hours per month that your se
 ### Environment Variables
 
 - **`PORT`** - The port on which the https server will listen, if not included, default value of 8080 will be used
-- **`OPENAI_API_KEY`** - needed to connect to the OpenAI API, to power chatbot if used
-- **`ACTIVATE_BOT`** - if "true", chatbot will be activated for all hosts listed in BOT_ENABLED_HOSTNAMES
+- **`OPENAI_API_KEY`** - Needed to connect to the OpenAI API, to power chatbot if used
+- **`ACTIVATE_BOT`** - If "true", chatbot will be activated for all hosts listed in BOT_ENABLED_HOSTNAMES
 - **`BOT_ENABLED_HOSTNAMES`** - An array of strings - a list of hostnames whose chat rooms should have the chatbot present. If a hostname is not listed, that host's chat room will have no chatbot.
 - **`BOT_NAME`** - The name to give the AI chatbot, if not included, default value will be used
 - **`BOT_INSTRUCTIONS`** - If provided, will be used as the chatbot's system prompt to define its behavior. Refer to the AI as "the assistant" when formulating instructions. (e.g. "The assistant is a chatbot that answers questions about the weather.")
-- **`VERBOSE_LOGS`** - if "true", server will log the content of all user chat messages
+- **`PUBLIC_CHATBOT_ENABLED`** - If "true" the chatbot will listen to the public chat for its wakeword and respond, otherwise it will only respond to private messages
+- **`VERBOSE_LOGS`** - If "true", server will log the content of all user chat messages
 - **`WAKE_SERVER_URL`** - URL of the chat server, if present, server will make a fetch call to this URL every WAKE_SERVER_INTERVAL milliseconds
-- **`WAKE_SERVER_INTERVAL`** - milliseconds to wait between calls to WAKE_SERVER_URL
-- **`WAKE_SERVER_NAP_START`** - time (HH:MM) to stop waking server, if not present, no naptime will be set
-- **`WAKE_SERVER_NAP_END`** - time (HH:MM) to resume waking server, if not present, no naptime will be set
+- **`WAKE_SERVER_INTERVAL`** - Milliseconds to wait between calls to WAKE_SERVER_URL
+- **`WAKE_SERVER_NAP_START`** - Time (HH:MM) to stop waking server, if not present, no naptime will be set
+- **`WAKE_SERVER_NAP_END`** - Time (HH:MM) to resume waking server, if not present, no naptime will be set
 
 ---
 
