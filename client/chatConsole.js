@@ -260,8 +260,8 @@ const showHelp = () => {
   users - list users in the chat room
   logout - disconnect from the chat room
   cancel - cancel pending request to chatbot
-  undo - remove last message and response from chatbot conversation (if any)
-  forget - remove all messages and responses from chatbot conversation
+  undo - remove last message and response from chatbot conversation
+  forget - remove all messages and responses from private chatbot conversation
   log - show chat log
   clear - clear console
   save - save chat log to file
