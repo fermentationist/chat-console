@@ -106,7 +106,7 @@ class ChatBot {
     this.openai = new OpenAIApi(this.configuration);
     this.name = name;
     this.wakeword = wakeword;
-    this.greeting = `Welcome, my name is ${this.name} and I am a chatbot. \n${PUBLIC_CHATBOT_ENABLED ? `To speak to me in the public chat room, send a public message that contains my wake-word, "${this.wakeword}". I will respond to you in the public chat as soon as I can. To continue our public conversation, each message you send must contain the wake-word. \nAlternately, you` : `You`} may speak to me in private and I will maintain a private history of our conversation${PUBLIC_CHATBOT_ENABLED ? ` that is separate from the public conversation` : ""}. If you send me a private message, only you will be able to see my response.`;
+    this.greeting = `Welcome, my name is ${this.name} and I am a chatbot. \n${PUBLIC_CHATBOT_ENABLED ? `To speak to me in the public chat room, send a public message that contains my wake-word, "${this.wakeword}". I will respond to you in the public chat as soon as I can. To continue our public conversation, each message you send must contain the wake-word. \nAlternatively, you` : `You`} may speak to me in private and I will maintain a private history of our conversation${PUBLIC_CHATBOT_ENABLED ? ` that is separate from the public conversation` : ""}. If you send me a private message, only you will be able to see my response.`;
   }
 
   getSystemPrompt(origin, userHandle, isPublic) {
