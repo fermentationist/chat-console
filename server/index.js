@@ -34,6 +34,9 @@ const VERBOSE_LOGS = process.env.VERBOSE_LOGS === "true" ? true : false;
 const httpServer = http.createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
 
+//==========================================================================
+// Helper functions
+//==========================================================================
 const cLog = (message, logLevel) => {
   if (logLevel === "verbose") {
     if (VERBOSE_LOGS) {
@@ -42,6 +45,13 @@ const cLog = (message, logLevel) => {
   } else {
     console.log(message);
   }
+};
+
+const wakeServer = () => {
+  console.log("waking server...");
+  return fetch(WAKE_SERVER_URL).catch((err) => {
+    // do nothing if fetch fails
+  });
 };
 
 //==========================================================================
@@ -108,10 +118,19 @@ wss.on("connection", (ws, req) => {
             return sendBotInactiveError("undo");
           }
           // remove last message and response from bot conversation
-          const typeRemoved = chatRooms.chatbot.removeLastMessage(origin, userId, lastBotInteractionWasPublic, name);
+          const typeRemoved = chatRooms.chatbot.removeLastMessage(
+            origin,
+            userId,
+            lastBotInteractionWasPublic,
+            name
+          );
           const unsayResponseMessage = typeRemoved
             ? `Somehow, you manage to unsay the last thing you said to ${chatRooms.chatbot.name} in ${typeRemoved}.`
-            : `${lastBotInteractionWasPublic ? `You can't undo the last public message to ${chatRooms.chatbot.name} because it did not come from you.` :`You haven't said anything privately to ${chatRooms.chatbot.name} yet.`}`;
+            : `${
+                lastBotInteractionWasPublic
+                  ? `You can't undo the last public message to ${chatRooms.chatbot.name} because it did not come from you.`
+                  : `You haven't said anything privately to ${chatRooms.chatbot.name} yet.`
+              }`;
           return sendMessageToUser(unsayResponseMessage, "server");
         case "cancel":
           if (!botIsActive) {
@@ -137,7 +156,10 @@ wss.on("connection", (ws, req) => {
           return sendMessageToUser(forgetResponseMessage, "server");
         default:
           // send error message
-          return sendMessageToUser(`Command not recognized: ${command}`, "server");
+          return sendMessageToUser(
+            `Command not recognized: ${command}`,
+            "server"
+          );
       }
     };
 
@@ -204,7 +226,10 @@ wss.on("connection", (ws, req) => {
       } else {
         // send bot response to user
         lastBotInteractionWasPublic = false;
-        sendMessageToUser(botResponse, `${chatRooms.chatbot.name} [bot] (private)`);
+        sendMessageToUser(
+          botResponse,
+          `${chatRooms.chatbot.name} [bot] (private)`
+        );
       }
     };
 
@@ -225,7 +250,10 @@ wss.on("connection", (ws, req) => {
 
     if (botIsActive) {
       // send greeting from chatbot
-      sendMessageToUser(chatRooms.chatbot.greeting, `${chatRooms.chatbot.name} (bot)`);
+      sendMessageToUser(
+        chatRooms.chatbot.greeting,
+        `${chatRooms.chatbot.name} (bot)`
+      );
     }
 
     //==========================================================================
@@ -246,7 +274,8 @@ wss.on("connection", (ws, req) => {
           `[${new Date().toISOString()}] incoming message from ${name} (${userId})`
         );
         cLog(decodedMessage, "verbose");
-
+        // ping server to keep it awake
+        wakeServer();
         // check if message is a command or private message
         if (decodedMessage.startsWith("/")) {
           const commandMessage = decodedMessage.slice(1);
