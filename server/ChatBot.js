@@ -127,7 +127,7 @@ class ChatBot {
   getBotInstructions(origin) {
     const defaultInstructions = `The assistant is helpful, creative, clever, and very friendly.`;
     const baseInstructions = BOT_INSTRUCTIONS ?? defaultInstructions;
-    return `${baseInstructions} The assistant lives in a chatroom on the website ${origin}. It can speak privately with each chatroom participant, but cannot speak to the chatroom as a whole. It periodically sighs.`;
+    return `${baseInstructions} \nThe assistant lives in a chatroom on the website ${origin}.`;
   }
 
   // getModeration returns a promise that resolves to the response from the OpenAI API createModeration endpoint
