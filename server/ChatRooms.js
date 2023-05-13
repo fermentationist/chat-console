@@ -1,5 +1,6 @@
 import "dotenv/config.js";
 import ChatBot from "./ChatBot.js";
+import ConnectedUser from "./ConnectedUser.js";
 import opError from "./error.js";
 
 class ChatRooms {
@@ -7,10 +8,13 @@ class ChatRooms {
   BOT_WAKEWORD = process.env.BOT_WAKEWORD ?? this.BOT_NAME;
   BOT_ALIASES = ["chatbot", "bot", this.BOT_NAME, this.BOT_WAKEWORD];
   RESERVED_NAMES = ["server", "chatroom", "room", "all", ...this.BOT_ALIASES];
+  CHATBOT_ENABLED = process.env.CHATBOT_ENABLED === "true";
+  BOT_ENABLED_HOSTNAMES = process.env.BOT_ENABLED_HOSTNAMES?.split(",")?.map(hostname => hostname.trim()) ?? [];
+  PUBLIC_CHATBOT_ENABLED = process.env.PUBLIC_CHATBOT_ENABLED === "true";
 
   constructor() {
     this.connections = {};
-    this.chatbot = new ChatBot(this.BOT_NAME, this.BOT_WAKEWORD);
+    this.chatbot = this.CHATBOT_ENABLED ? new ChatBot(this.BOT_NAME, this.BOT_WAKEWORD) : null;
   }
 
   getUid() {
@@ -19,8 +23,8 @@ class ChatRooms {
     return `${timestamp}-${random}`;
   }
 
-  addConnection(origin, connection, handle) {
-    const handleExists = this.connections[origin]?.some(
+  addConnection(hostname, connection, handle) {
+    const handleExists = this.connections[hostname]?.some(
       (connection) => connection.name.toLowerCase() === handle?.toLowerCase()
     );
     if (handleExists) {
@@ -33,23 +37,23 @@ class ChatRooms {
     ) {
       throw opError("invalid_handle", `${handle} is a reserved name`);
     }
-    if (!this.connections[origin]) {
-      this.connections[origin] = [];
+    if (!this.connections[hostname]) {
+      this.connections[hostname] = [];
     }
-    const id = this.getUid();
-    this.connections[origin].push({ id, connection, name: handle ?? id });
-    return id;
+    const newConnection = new ConnectedUser(connection, hostname, handle);
+    this.connections[hostname].push(newConnection);
+    return newConnection;
   }
 
-  removeConnection(origin, userId) {
+  removeConnection(hostname, userId) {
     // remove connection
-    this.connections[origin] = this.connections[origin].filter(
+    this.connections[hostname] = this.connections[hostname].filter(
       (connection) => connection.id !== userId
     );
   }
 
-  sendPrivateMessage({ origin, recipient, sender, message }) {
-    const connection = this.connections[origin].find(
+  sendPrivateMessage({ hostname, recipient, sender, message }) {
+    const connection = this.connections[hostname].find(
       (connection) => connection.name === recipient
     );
     if (!connection) {
@@ -67,14 +71,18 @@ class ChatRooms {
     );
   }
 
-  broadcast(origin, data) {
-    this.connections[origin].forEach((connection) =>
+  broadcast(hostname, data) {
+    this.connections[hostname].forEach((connection) =>
       connection.connection.send(JSON.stringify(data))
     );
   }
 
-  getHandles(origin) {
-    return this.connections[origin].map((connection) => connection.name);
+  getHandles(hostname) {
+    return this.connections[hostname].map((connection) => connection.name);
+  }
+
+  botIsActive(hostname) {
+    return this.chatbot && (this.BOT_ENABLED_HOSTNAMES.includes(hostname) || this.BOT_ENABLED_HOSTNAMES.includes("*"));
   }
 }
 

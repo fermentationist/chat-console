@@ -13,6 +13,8 @@ The app also uses the [OpenAI GPT-3.5 API](https://platform.openai.com/docs/api-
 
 To use the chat client, you must first open the browser's JavaScript console. This can be done by pressing `F12` in most browsers. Once the console is open, you can use the following commands:
 
+### Commands 
+
 - **connect** - Connect to the chat room with the previously used handle, or anonymously if no handle was used
 - **join \`**\<handle>**\`** - Connect to the chat room with a handle. Enclose the handle in **backticks**. (be sure to use *backticks*, not apostrophes!)
 - **say \`**\<message>**\`** - Send a message to the chat room. Enclose the message in **backticks**.
@@ -29,6 +31,17 @@ To use the chat client, you must first open the browser's JavaScript console. Th
 - **save** - Save the current chat log to text file. You will be prompted for a filename and location.
 - **load** - Load chat log from file and display it in the console. You will be prompted for a filename and location.
 - **help** - Display the help message.
+
+### Interacting with the Chatbot
+
+  There are a few different ways to exchange messages with the chatbot. 
+  1. **Public chatbot**
+      * The chatbot will respond to any public message sent to the chat room (with the `say` command), that contains its wake-word (the chatbot's name). For example, if the chatbot's name is "ChatBot", you can send it a message by typing ````say `ChatBot, what is the weather like today?` ```` in the client console. Messages sent to the chatbot in this way will be visible to all users in the chat room, as will the chatbot's response.
+      * The chatbot will store all messages sent to it publicly in the same conversation history, regardless of sender.
+  2. **Private chatbot**
+      * If you send a private message to the chatbot, using either the `bot` or `pm` commands, the chatbot will respond privately to you. 
+      * The chatbot will store all messages sent to it privately in a separate conversation history for each user.
+
 
 ---
 
@@ -54,18 +67,9 @@ The chat server is configured to create a separate chat room for each hostname t
 2. **Get an API key** - OpenAI [API settings page](https://platform.openai.com/account/api-keys)
 3. **Add API key to server environment variables** - `OPENAI_API_KEY=yourkey`
 4. **Set `CHATBOT_ENABLED` environment variable** - `CHATBOT_ENABLED=true`
-5. **Activate chatbot for all hosts, or specific hosts** - The value of the `BOT_ENABLED_HOSTNAMES` environment variable must be an array. To activate the chatbot for all hostnames, simply add a `*` to the array: `BOT_ENABLED_HOSTNAMES=["*"]`. To enable the chatbot for selected hostnames only, add the hostnames to the array: `BOT_ENABLED_HOSTNAMES=["yourserver.tld", "yourserver2.tld"]`. If a hostname is not listed, that host's chat room will have no chatbot.
+5. **Activate chatbot for all hosts, or specific hosts** - The value of the `BOT_ENABLED_HOSTNAMES` environment variable must be an array. To activate the chatbot for all hostnames, simply add a `*` to the array: `BOT_ENABLED_HOSTNAMES=*`. To enable the chatbot for selected hostnames only, add the hostnames to the array: `BOT_ENABLED_HOSTNAMES=yourserver.tld, yourserver2.tld`. If a hostname is not listed, that host's chat room will have no chatbot.
 6. **Set chatbot name** - `BOT_NAME=yourbotname` (optional) This is the name that will be displayed in the chat room when the chatbot sends a message. If not included, the default value of "ChatBot" will be used.
 7. **Set chatbot instructions** - `BOT_INSTRUCTIONS="your instructions"` (optional) If provided, will be used as the chatbot's system prompt to define its behavior. Refer to the AI as "the assistant" when formulating instructions. (e.g. "The assistant is a chatbot that answers questions about the weather.")
-
-#### Interacting with the Chatbot
-  There are a few different ways to exchange messages with the chatbot. 
-  1. **Public chatbot**
-      * The chatbot will respond to any public message sent to the chat room (with the `say` command), that contains its wake-word (the chatbot's name). For example, if the chatbot's name is "ChatBot", you can send it a message by typing ````say `ChatBot, what is the weather like today?` ```` in the client console. Messages sent to the chatbot in this way will be visible to all users in the chat room, as will the chatbot's response.
-      * The chatbot will store all messages sent to it publicly in the same conversation history, regardless of sender.
-  2. **Private chatbot**
-      * If you send a private message to the chatbot, using either the `bot` or `pm` commands, the chatbot will respond privately to you. 
-      * The chatbot will store all messages sent to it privately in a separate conversation history for each user.
 
 ### Keeping the Server Awake
 If you are using a free service to host your server that spins down and sleeps when not used for a while, you can use the `WAKE_SERVER_URL` and `WAKE_SERVER_INTERVAL` environment variables to keep the server awake. The server will make a fetch call to the URL every `WAKE_SERVER_INTERVAL` milliseconds. 
@@ -79,7 +83,7 @@ Since free hosting services may limit the number of hours per month that your se
 - **`PORT`** - The port on which the https server will listen, if not included, default value of 8080 will be used
 - **`OPENAI_API_KEY`** - Needed to connect to the OpenAI API, to power chatbot if used
 - **`CHATBOT_ENABLED`** - If "true", chatbot will be activated for all hosts listed in BOT_ENABLED_HOSTNAMES
-- **`BOT_ENABLED_HOSTNAMES`** - An array of strings - a list of hostnames whose chat rooms should have the chatbot present. If a hostname is not listed, that host's chat room will have no chatbot.
+- **`BOT_ENABLED_HOSTNAMES`** - A comma-separated list of hostnames whose chat rooms should have the chatbot present. If a hostname is not listed, that host's chat room will have no chatbot. To activate the chatbot for all hosts, set value to `*`.
 - **`BOT_NAME`** - The name to give the AI chatbot, if not included, default value will be used
 - **`BOT_INSTRUCTIONS`** - If provided, will be used as the chatbot's system prompt to define its behavior. Refer to the AI as "the assistant" when formulating instructions. (e.g. "The assistant is a chatbot that answers questions about the weather.")
 - **`PUBLIC_CHATBOT_ENABLED`** - If "true" the chatbot will listen to the public chat for its wakeword and respond, otherwise it will only respond to private messages
