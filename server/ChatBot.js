@@ -6,7 +6,7 @@ const BOT_INSTRUCTIONS = process.env.BOT_INSTRUCTIONS;
 const PUBLIC_CHATBOT_ENABLED = process.env.PUBLIC_CHATBOT_ENABLED === "true" ? true : false;
 // 85% of the max token limit, to leave room for the bot's response
 const TOKEN_LIMIT = Math.floor(Math.round(4096 * 0.85));
-// used as key in ChatBot.messages[origin], to store messages for the public chatbot (the one that responds to everyone in the room)
+// used as key in ChatBot.messages[hostname], to store messages for the public chatbot (the one that responds to everyone in the room)
 const PUBLIC_CHATROOM_ID = "chatroom";
 
 class ChatBotRequest {
@@ -97,6 +97,7 @@ class ChatBot {
   temperature = 0.95;
   model = "gpt-3.5-turbo-0301";
   cancelled = false;
+  pendingRequestMessage = `Please wait while I finish responding to your previous message. If you don't want to wait, type "cancel" to cancel your previous message.`;
   constructor(name, wakeword = name) {
     this.conversations = {};
     this.pendingRequests = {};
@@ -109,7 +110,7 @@ class ChatBot {
     this.greeting = `Welcome, my name is ${this.name} and I am a chatbot. \n${PUBLIC_CHATBOT_ENABLED ? `To speak to me in the public chat room, send a public message that contains my wake-word, "${this.wakeword}". I will respond to you in the public chat as soon as I can. To continue our public conversation, each message you send must contain the wake-word. \nAlternatively, you` : `You`} may speak to me in private and I will maintain a private history of our conversation${PUBLIC_CHATBOT_ENABLED ? ` that is separate from the public conversation` : ""}. If you send me a private message, only you will be able to see my response.`;
   }
 
-  getSystemPrompt(origin, userHandle, isPublic) {
+  getSystemPrompt(hostname, userHandle, isPublic) {
     return {
       role: "system",
       content: `The following is a conversation between an AI assistant named ${
@@ -119,15 +120,15 @@ class ChatBot {
           ? `the participants of a chat room. The user who is speaking is listed in parentheses`
           : `a user. The user's handle is ${userHandle}`
       }, and the assistant addresses the user by their handle. ${this.getBotInstructions(
-        origin
+        hostname
       )}`,
     };
   }
 
-  getBotInstructions(origin) {
+  getBotInstructions(hostname) {
     const defaultInstructions = `The assistant is helpful, creative, clever, and very friendly.`;
     const baseInstructions = BOT_INSTRUCTIONS ?? defaultInstructions;
-    return `${baseInstructions} \nThe assistant lives in a chatroom on the website ${origin}.`;
+    return `${baseInstructions} \nThe assistant lives in a chatroom on the website ${hostname}.`;
   }
 
   // getModeration returns a promise that resolves to the response from the OpenAI API createModeration endpoint
@@ -153,8 +154,8 @@ class ChatBot {
     return false;
   }
 
-  userHasPendingUncancelledRequest(origin, userId) {
-    const pendingRequests = this.pendingRequests[origin]?.[userId];
+  userHasPendingUncancelledRequest(hostname, userId) {
+    const pendingRequests = this.pendingRequests[hostname]?.[userId];
     if (!pendingRequests || !pendingRequests.length) {
       return false;
     }
@@ -163,26 +164,26 @@ class ChatBot {
 
   async converse({
     message: userInput,
-    origin,
+    hostname,
     userId,
     userHandle,
     isPublic = false,
   }) {
     const userOrPublicId = isPublic ? PUBLIC_CHATROOM_ID : userId;
-    if (this.userHasPendingUncancelledRequest(origin, userId)) {
-      return `Please wait while I finish responding to your previous message. If you don't want to wait, type "cancel" to cancel your previous message.`;
+    if (this.userHasPendingUncancelledRequest(hostname, userId)) {
+      return this.pendingRequestMessage;
     }
     let request;
     try {
       const contentViolation = await this.failsModeration(userInput);
       if (contentViolation) {
-        return `Sorry, your message was flagged as ${contentViolation}. Please reformulate and try again.`;
+        return `Sorry, your message was flagged as violating content policies in the category "${contentViolation}". Please reformulate and try again.`;
       }
-      if (!this.conversations[origin]) {
-        this.conversations[origin] = {};
+      if (!this.conversations[hostname]) {
+        this.conversations[hostname] = {};
       }
-      const systemPrompt = this.getSystemPrompt(origin, userHandle, isPublic);
-      const previousConversation = this.conversations[origin][
+      const systemPrompt = this.getSystemPrompt(hostname, userHandle, isPublic);
+      const previousConversation = this.conversations[hostname][
         userOrPublicId
       ] || [systemPrompt];
       const newMessage = {
@@ -192,10 +193,10 @@ class ChatBot {
       const messages = [...previousConversation, newMessage];
       request = new ChatBotRequest({
         messages,
-        origin,
+        hostname,
         openai: this.openai,
       });
-      this.addToPendingRequests(origin, userId, request);
+      this.addToPendingRequests(hostname, userId, request);
       const completion = await request.getCompletion(messages);
       if (request.cancelled) {
         return null;
@@ -205,7 +206,7 @@ class ChatBot {
           role: "assistant",
           content: completion.data,
         });
-        this.conversations[origin][userOrPublicId] = messages;
+        this.conversations[hostname][userOrPublicId] = messages;
       }
       return completion.data;
     } catch (error) {
@@ -215,23 +216,23 @@ class ChatBot {
         ? `Error: ${error.message}`
         : `Sorry, I'm having trouble understanding you. Please try again.`;
     } finally {
-      this.removeFromPendingRequests(origin, userId, request);
+      this.removeFromPendingRequests(hostname, userId, request);
     }
   }
 
-  addToPendingRequests(origin, userId, request) {
-    if (!this.pendingRequests[origin]) {
-      this.pendingRequests[origin] = {};
+  addToPendingRequests(hostname, userId, request) {
+    if (!this.pendingRequests[hostname]) {
+      this.pendingRequests[hostname] = {};
     }
-    if (this.pendingRequests[origin][userId]) {
-      this.pendingRequests[origin][userId].push(request);
+    if (this.pendingRequests[hostname][userId]) {
+      this.pendingRequests[hostname][userId].push(request);
     } else {
-      this.pendingRequests[origin][userId] = [request];
+      this.pendingRequests[hostname][userId] = [request];
     }
   }
 
-  removeFromPendingRequests(origin, userId, request) {
-    const pendingRequests = this.pendingRequests[origin]?.[userId];
+  removeFromPendingRequests(hostname, userId, request) {
+    const pendingRequests = this.pendingRequests[hostname]?.[userId];
     if (pendingRequests) {
       const index = pendingRequests.indexOf(request);
       if (index > -1) {
@@ -240,8 +241,8 @@ class ChatBot {
     }
   }
 
-  cancelPending(origin, userId) {
-    const pendingRequest = this.pendingRequests[origin]?.[userId]?.shift();
+  cancelPending(hostname, userId) {
+    const pendingRequest = this.pendingRequests[hostname]?.[userId]?.shift();
     if (pendingRequest) {
       pendingRequest.cancel();
       return true;
@@ -249,10 +250,10 @@ class ChatBot {
     return false;
   }
 
-  removeLastMessage(origin, userId, isPublic, userHandle) {
+  removeLastMessage(hostname, userId, isPublic, userHandle) {
     let chatbotType = "private";
     if (isPublic) {
-      const lastMessage = this.conversations[origin]?.[PUBLIC_CHATROOM_ID]?.slice(-2, -1)?.[0];
+      const lastMessage = this.conversations[hostname]?.[PUBLIC_CHATROOM_ID]?.slice(-2, -1)?.[0];
       
       const lastMessageSender = lastMessage?.content?.split(")")?.[0]?.replace("(", "");
       if (lastMessageSender === userHandle) {
@@ -260,7 +261,7 @@ class ChatBot {
       }
     }
     // If the last public chatbot message was sent by the user, remove the last message from the public chatbot's message history, otherwise remove the last message from the user's private chatroom
-    const messages = this.conversations[origin]?.[chatbotType === "public" ? PUBLIC_CHATROOM_ID : userId];
+    const messages = this.conversations[hostname]?.[chatbotType === "public" ? PUBLIC_CHATROOM_ID : userId];
     if (!messages || messages.length < 2) {
       return false;
     }
@@ -269,13 +270,13 @@ class ChatBot {
     return chatbotType;
   }
 
-  forget(origin, userId) {
-    const messages = this.conversations[origin]?.[userId];
+  forget(hostname, userId) {
+    const messages = this.conversations[hostname]?.[userId];
     if (!messages) {
       return false;
     }
     const clearedMessages = messages.slice(0, 1);
-    this.conversations[origin][userId] = clearedMessages;
+    this.conversations[hostname][userId] = clearedMessages;
     return clearedMessages;
   }
 }
