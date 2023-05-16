@@ -97,6 +97,7 @@ class ChatBot {
   temperature = 0.95;
   model = "gpt-3.5-turbo-0301";
   cancelled = false;
+  pendingRequestMessage = `Please wait while I finish responding to your previous message. If you don't want to wait, type "cancel" to cancel your previous message.`;
   constructor(name, wakeword = name) {
     this.conversations = {};
     this.pendingRequests = {};
@@ -169,14 +170,15 @@ class ChatBot {
     isPublic = false,
   }) {
     const userOrPublicId = isPublic ? PUBLIC_CHATROOM_ID : userId;
+    console.log("this.userHasPendingUncancelledRequest(hostname, userId):", this.userHasPendingUncancelledRequest(hostname, userId));
     if (this.userHasPendingUncancelledRequest(hostname, userId)) {
-      return `Please wait while I finish responding to your previous message. If you don't want to wait, type "cancel" to cancel your previous message.`;
+      return this.pendingRequestMessage;
     }
     let request;
     try {
       const contentViolation = await this.failsModeration(userInput);
       if (contentViolation) {
-        return `Sorry, your message was flagged as ${contentViolation}. Please reformulate and try again.`;
+        return `Sorry, your message was flagged as violating content policies in the category "${contentViolation}". Please reformulate and try again.`;
       }
       if (!this.conversations[hostname]) {
         this.conversations[hostname] = {};
