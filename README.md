@@ -45,7 +45,10 @@ To use the chat client, you must first open the browser's JavaScript console. Th
 
 ---
 
-## Server Use
+## Development
+
+
+### Installation
 
 1. **Clone the repo** - `git clone https://github.com/fermentaionist/chat-console.git`
 2. **Install dependencies** - `cd chat-console`, then`npm install`
@@ -60,6 +63,10 @@ The server will listen on port 8080 by default.
 ```
 
 The chat server is configured to create a separate chat room for each hostname that connects to it. This means that if you have multiple websites, you can add the client to each of them, and each website will have its own chat room.
+
+### Unit Tests
+
+To run the unit tests, type `npm test` in the terminal. The tests are written using the [Jest](https://jestjs.io/) testing framework.
 
 ### Chatbot
 
