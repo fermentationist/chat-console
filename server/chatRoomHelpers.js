@@ -21,7 +21,7 @@ export const addConnection = (hostname, connection, handle) => {
 }
 
 export const getBotInactiveErrorMessage = (command) => {
-  const message = `"${command}" command only works when a chatbot is active`;
+  return `"${command}" command only works when a chatbot is active`;
 };
 
 export const executeCommand = (command, user) => {
