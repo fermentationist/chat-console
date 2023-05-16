@@ -34,7 +34,7 @@ export const executeCommand = (command, user) => {
   switch (command) {
     case "users":
       // send list of users in room
-      return user.send(getUserListMessage(chatRooms, hostname), "server");
+      return user.send(getUserListMessage(hostname), "server");
     case "undo":
       if (!botIsActive) {
         // send error message
