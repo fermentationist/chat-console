@@ -28,7 +28,7 @@ class ChatRooms {
       (connection) => connection.name.toLowerCase() === handle?.toLowerCase()
     );
     if (handleExists) {
-      throw opError("invalid_handle", `handle ${handle} already used`);
+      throw opError("invalid_handle", `handle ${handle} already in use`);
     }
     if (
       this.RESERVED_NAMES.map((name) => name.toLowerCase()).includes(
@@ -78,7 +78,7 @@ class ChatRooms {
   }
 
   getHandles(hostname) {
-    return this.connections[hostname].map((connection) => connection.name);
+    return this.connections[hostname]?.map((connection) => connection.name) ?? [];
   }
 
   botIsActive(hostname) {
