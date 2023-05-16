@@ -5,7 +5,7 @@
   "description": "Chat hidden in the browser console",
   "main": "server/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "NODE_OPTIONS=--experimental-vm-modules && export NODE_OPTIONS && jest --runInBand",
     "start": "node server/index.js"
   },
   "author": "",
@@ -17,5 +17,8 @@
     "openai": "^3.2.1",
     "woke-dyno": "^1.0.0",
     "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0"
   }
 }
