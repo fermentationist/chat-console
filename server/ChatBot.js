@@ -170,7 +170,6 @@ class ChatBot {
     isPublic = false,
   }) {
     const userOrPublicId = isPublic ? PUBLIC_CHATROOM_ID : userId;
-    console.log("this.userHasPendingUncancelledRequest(hostname, userId):", this.userHasPendingUncancelledRequest(hostname, userId));
     if (this.userHasPendingUncancelledRequest(hostname, userId)) {
       return this.pendingRequestMessage;
     }
