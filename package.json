@@ -2,6 +2,7 @@
   "name": "chat-console",
   "version": "0.0.1",
   "type": "module",
+  "packageManager": "pnpm@9.5.0",
   "description": "Chat hidden in the browser console",
   "main": "server/index.js",
   "scripts": {
