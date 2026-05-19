@@ -21,15 +21,13 @@ describe("ChatBot", () => {
       return new Promise((resolve) => {
         setTimeout(() => {
           resolve({
-            data: {
-              choices: [
-                {
-                  message: {
-                    content: completionContent,
-                  },
+            choices: [
+              {
+                message: {
+                  content: completionContent,
                 },
-              ],
-            },
+              },
+            ],
           });
         }, delay);
       });
@@ -69,37 +67,35 @@ describe("ChatBot", () => {
       let failMod = false;
       const createModerationMock = jest.fn(() => {
         return {
-          data: {
-            results: [
-              {
-                flagged: failMod,
-                categories: {
-                  sexual: failMod,
-                  hate: false,
-                  violence: false,
-                  "self-harm": false,
-                  "sexual/minors": false,
-                  "hate/threatening": false,
-                  "violence/graphic": false,
-                },
-                category_scores: {
-                  sexual: failMod
-                    ? 0.8142989277839661
-                    : 0.0000032604839361738414,
-                  hate: 5.585471285485255e-8,
-                  violence: 1.1472419458868899e-7,
-                  "self-harm": 1.065993994464609e-11,
-                  "sexual/minors": 1.7428973819733073e-9,
-                  "hate/threatening": 8.059059062454077e-13,
-                  "violence/graphic": 3.847795693179279e-10,
-                },
+          results: [
+            {
+              flagged: failMod,
+              categories: {
+                sexual: failMod,
+                hate: false,
+                violence: false,
+                "self-harm": false,
+                "sexual/minors": false,
+                "hate/threatening": false,
+                "violence/graphic": false,
               },
-            ],
-          },
+              category_scores: {
+                sexual: failMod
+                  ? 0.8142989277839661
+                  : 0.0000032604839361738414,
+                hate: 5.585471285485255e-8,
+                violence: 1.1472419458868899e-7,
+                "self-harm": 1.065993994464609e-11,
+                "sexual/minors": 1.7428973819733073e-9,
+                "hate/threatening": 8.059059062454077e-13,
+                "violence/graphic": 3.847795693179279e-10,
+              },
+            },
+          ],
         };
       });
       const createModeration = jest
-        .spyOn(chatbot.openai, "createModeration")
+        .spyOn(chatbot.openai.moderations, "create")
         .mockImplementation(createModerationMock);
       const moderation = await chatbot.getModeration(message);
       expect(moderation).toHaveProperty("categories");
@@ -131,7 +127,7 @@ describe("ChatBot", () => {
   describe("converse", () => {
     it("should return a string", async () => {
       const createChatCompletion = jest
-        .spyOn(chatbot.openai, "createChatCompletion")
+        .spyOn(chatbot.openai.chat.completions, "create")
         .mockImplementation(createChatCompletionMockWithDelay(0));
       const getModeration = jest.spyOn(chatbot, "getModeration");
 
@@ -157,7 +153,7 @@ describe("ChatBot", () => {
 
     it("should return a warning and reject message if sending a second message while a previous response is still pending", (done) => {
       const createChatCompletion = jest
-        .spyOn(chatbot.openai, "createChatCompletion")
+        .spyOn(chatbot.openai.chat.completions, "create")
         .mockImplementation(createChatCompletionMockWithDelay(250));
       const getModeration = jest.spyOn(chatbot, "getModeration");
       const firstRequest = chatbot

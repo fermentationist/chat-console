@@ -1,13 +1,19 @@
 import "dotenv/config";
-import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
 import opError from "./error.js";
 
 const BOT_INSTRUCTIONS = process.env.BOT_INSTRUCTIONS;
 const PUBLIC_CHATBOT_ENABLED = process.env.PUBLIC_CHATBOT_ENABLED === "true" ? true : false;
+const BOT_MODEL = process.env.BOT_MODEL ?? "gpt-4o-mini";
 // 85% of the max token limit, to leave room for the bot's response
 const TOKEN_LIMIT = Math.floor(Math.round(4096 * 0.85));
 // used as key in ChatBot.messages[hostname], to store messages for the public chatbot (the one that responds to everyone in the room)
 const PUBLIC_CHATROOM_ID = "chatroom";
+// Rate limiting: max requests per user per window. 0 = disabled.
+const RATE_LIMIT = parseInt(process.env.BOT_RATE_LIMIT ?? "10");
+const RATE_WINDOW_MS = parseInt(process.env.BOT_RATE_WINDOW_MS ?? "60000");
+// Token budget: max total tokens a user may consume per session. 0 = disabled.
+const TOKEN_LIMIT_PER_USER = parseInt(process.env.BOT_TOKEN_LIMIT_PER_USER ?? "0");
 
 class ChatBotRequest {
   cancelled = false;
@@ -15,7 +21,7 @@ class ChatBotRequest {
   constructor({ messages, openai, tokenLimit, model }) {
     this.messages = messages;
     this.openai = openai;
-    this.model = model ?? "gpt-3.5-turbo-0301";
+    this.model = model ?? BOT_MODEL;
     this.TOKEN_LIMIT = tokenLimit ?? TOKEN_LIMIT;
     // trim the messages array to the token limit
     while (ChatBotRequest.tokenEstimate(this.messages) > this.TOKEN_LIMIT) {
@@ -44,25 +50,24 @@ class ChatBotRequest {
       let difference = this.TOKEN_LIMIT - estimatedPromptTokens;
       difference = difference < 0 ? this.TOKEN_LIMIT + difference : difference;
       performance.mark("start");
-      const response = await this.openai.createChatCompletion({
+      const response = await this.openai.chat.completions.create({
         model: this.model,
         messages,
         max_tokens: difference,
         temperature: this.temperature,
       });
-      console.log("\nGPT model used:", response?.data?.model);
-      console.log("Total tokens:", response?.data?.usage?.total_tokens);
+      console.log("\nGPT model used:", response?.model);
+      console.log("Total tokens:", response?.usage?.total_tokens);
       return {
-        data:
-          response?.data?.choices &&
-          response.data.choices?.[0]?.message?.content,
+        data: response?.choices?.[0]?.message?.content,
+        tokens: response?.usage?.total_tokens ?? 0,
         status: "success",
       };
     } catch (error) {
       // do not return error to the user
       console.log("Error getting completion from OpenAI API:");
-      console.error(error.response?.data?.error ?? error);
-      if (error.response?.data?.error?.type === "server_error") {
+      console.error(error);
+      if (error instanceof OpenAI.APIError && error.status >= 500) {
         return {
           data: `My apologies, but I can't talk right now. Please come back later.`,
           status: "error",
@@ -95,16 +100,17 @@ class ChatBot {
     // "violence/graphic",
   ];
   temperature = 0.95;
-  model = "gpt-3.5-turbo-0301";
+  model = BOT_MODEL;
   cancelled = false;
   pendingRequestMessage = `Please wait while I finish responding to your previous message. If you don't want to wait, type "cancel" to cancel your previous message.`;
   constructor(name, wakeword = name) {
     this.conversations = {};
     this.pendingRequests = {};
-    this.configuration = new Configuration({
+    this.userRequestTimestamps = {};
+    this.userTokensUsed = {};
+    this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
-    this.openai = new OpenAIApi(this.configuration);
     this.name = name;
     this.wakeword = wakeword;
     this.greeting = `Welcome, my name is ${this.name} and I am a chatbot. \n${PUBLIC_CHATBOT_ENABLED ? `To speak to me in the public chat room, send a public message that contains my wake-word, "${this.wakeword}". I will respond to you in the public chat as soon as I can. To continue our public conversation, each message you send must contain the wake-word. \nAlternatively, you` : `You`} may speak to me in private and I will maintain a private history of our conversation${PUBLIC_CHATBOT_ENABLED ? ` that is separate from the public conversation` : ""}. If you send me a private message, only you will be able to see my response.`;
@@ -133,8 +139,8 @@ class ChatBot {
 
   // getModeration returns a promise that resolves to the response from the OpenAI API createModeration endpoint
   async getModeration(input) {
-    const response = await this.openai.createModeration({ input });
-    const results = response?.data?.results?.[0];
+    const response = await this.openai.moderations.create({ input });
+    const results = response?.results?.[0];
     return results;
   }
 
@@ -173,6 +179,14 @@ class ChatBot {
     if (this.userHasPendingUncancelledRequest(hostname, userId)) {
       return this.pendingRequestMessage;
     }
+    if (this.isRateLimited(userId)) {
+      const windowSecs = Math.round(RATE_WINDOW_MS / 1000);
+      return `You've sent too many messages. Please wait ${windowSecs} seconds before messaging ${this.name} again.`;
+    }
+    if (this.isOverTokenBudget(userId)) {
+      return `You've reached the token limit for this session. Please reconnect to start a new session.`;
+    }
+    this.recordRequest(userId);
     let request;
     try {
       const contentViolation = await this.failsModeration(userInput);
@@ -195,6 +209,7 @@ class ChatBot {
         messages,
         hostname,
         openai: this.openai,
+        model: this.model,
       });
       this.addToPendingRequests(hostname, userId, request);
       const completion = await request.getCompletion(messages);
@@ -202,6 +217,7 @@ class ChatBot {
         return null;
       }
       if (completion?.status === "success") {
+        this.recordTokens(userId, completion.tokens ?? 0);
         messages.push({
           role: "assistant",
           content: completion.data,
@@ -241,6 +257,34 @@ class ChatBot {
     }
   }
 
+  isRateLimited(userId) {
+    if (RATE_LIMIT === 0) return false;
+    const now = Date.now();
+    const recent = (this.userRequestTimestamps[userId] ?? []).filter(t => now - t < RATE_WINDOW_MS);
+    this.userRequestTimestamps[userId] = recent;
+    return recent.length >= RATE_LIMIT;
+  }
+
+  recordRequest(userId) {
+    const timestamps = this.userRequestTimestamps[userId] ?? [];
+    timestamps.push(Date.now());
+    this.userRequestTimestamps[userId] = timestamps;
+  }
+
+  isOverTokenBudget(userId) {
+    if (TOKEN_LIMIT_PER_USER === 0) return false;
+    return (this.userTokensUsed[userId] ?? 0) >= TOKEN_LIMIT_PER_USER;
+  }
+
+  recordTokens(userId, tokens) {
+    this.userTokensUsed[userId] = (this.userTokensUsed[userId] ?? 0) + tokens;
+  }
+
+  clearUser(userId) {
+    delete this.userRequestTimestamps[userId];
+    delete this.userTokensUsed[userId];
+  }
+
   cancelPending(hostname, userId) {
     const pendingRequest = this.pendingRequests[hostname]?.[userId]?.shift();
     if (pendingRequest) {
@@ -254,7 +298,7 @@ class ChatBot {
     let chatbotType = "private";
     if (isPublic) {
       const lastMessage = this.conversations[hostname]?.[PUBLIC_CHATROOM_ID]?.slice(-2, -1)?.[0];
-      
+
       const lastMessageSender = lastMessage?.content?.split(")")?.[0]?.replace("(", "");
       if (lastMessageSender === userHandle) {
         chatbotType = "public";

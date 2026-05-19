@@ -46,10 +46,10 @@ class ChatRooms {
   }
 
   removeConnection(hostname, userId) {
-    // remove connection
     this.connections[hostname] = this.connections[hostname].filter(
       (connection) => connection.id !== userId
     );
+    this.chatbot?.clearUser(userId);
   }
 
   sendPrivateMessage({ hostname, recipient, sender, message }) {
